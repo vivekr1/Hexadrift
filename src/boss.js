@@ -66,9 +66,11 @@ function makeEnemyBullet(x, y, vx, vy, r, color) {
   };
 }
 
+const FLASH_TIME = 0.08;
+
 function damageFlash(b, ctx) {
   if (b.flash > 0) {
-    ctx.globalAlpha = b.flash;
+    ctx.globalAlpha = Math.min(b.flash / FLASH_TIME, 1);
     ctx.fillStyle = '#fff';
     ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
     ctx.globalAlpha = 1;

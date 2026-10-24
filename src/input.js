@@ -10,6 +10,7 @@ export class Input {
     });
     addEventListener('keyup', e => { this.keys[e.code] = false; });
   }
+  
   update() { this.pressed = {}; }
   down(code) { return !!this.keys[code]; }
   justPressed(code) { return !!this.pressed[code]; }

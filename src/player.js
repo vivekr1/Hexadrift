@@ -1,18 +1,21 @@
-// Player logic// src/player.js
+// src/player.js
+import { explosions } from './particles.js';
+
 export class Player {
   constructor(game, x, y) {
     this.game = game;
     this.x = x; this.y = y;
-    this.r = 6;             // tiny hitbox
+    this.r = 6;
     this.w = 24; this.h = 24;
     this.speed = 300;
     this.alive = true;
     this.lives = 3;
     this.bombs = 3;
-    this.weapon = 1;        // 1..3 power level
+    this.weapon = 1;
     this.cooldown = 0;
     this.fireRate = 0.10;
-    this.invuln = 1.0;      // seconds after spawn
+    this.invuln = 1.0;
+    this.score = 0;
   }
 
   update(dt) {
@@ -37,38 +40,63 @@ export class Player {
       this.cooldown = this.fireRate;
     }
 
+    if (input.justPressed('KeyX')) this.useBomb();
+
     if (this.invuln > 0) this.invuln -= dt;
   }
 
   shoot() {
-    const { game } = this;
     const spd = 800;
-    if (this.weapon === 1) {
-      this.spawnBullet(0, -spd);
-    } else if (this.weapon === 2) {
-      this.spawnBullet(-90, -spd);
-      this.spawnBullet( 90, -spd);
+    const lvl = this.weapon;
+
+    if (lvl === 1) {
+      // Single straight shot
+      this.spawnBullet(0, 0, -spd, 1);
+
+    } else if (lvl === 2) {
+      // Two parallel shots, offset left/right
+      this.spawnBullet(-8, 0, -spd, 1);
+      this.spawnBullet( 8, 0, -spd, 1);
+
     } else {
-      this.spawnBullet(0, -spd * 1.1);
-      this.spawnBullet(-120, -spd);
-      this.spawnBullet( 120, -spd);
+      // Level 3: strong center + two angled wings
+      const angle = 0.22;
+      const vxOff = Math.sin(angle) * spd;   // ~175 px/s sideways
+      this.spawnBullet( 0, 0,       -spd * 1.15, 2);
+      this.spawnBullet(-6, -vxOff,  -spd,        1);
+      this.spawnBullet( 6,  vxOff,  -spd,        1);
     }
   }
 
-  spawnBullet(vx, vy) {
-    this.game.bullets.push({
-      x: this.x, y: this.y - 14, vx, vy, alive: true,
-      r: 4,
-      update(dt) {
-        this.x += this.vx * dt;
-        this.y += this.vy * dt;
-        if (this.y < -20) this.alive = false;
-      },
-      draw(ctx) {
-        ctx.fillStyle = '#7ff';
-        ctx.fillRect(this.x - 2, this.y - 6, 4, 12);
-      },
-    });
+  // Signature: offsetX, vx, vy, damage
+  spawnBullet(offsetX, vx, vy, damage = 1) {
+    const b = this.game.bullets.spawn();
+    b.x = this.x + offsetX;
+    b.y = this.y - 14;
+    b.vx = vx;
+    b.vy = vy;
+    b.r = 4;
+    b.damage = damage;
+  }
+
+  useBomb() {
+    if (this.bombs <= 0) return;
+    this.bombs--;
+
+    this.invuln = Math.max(this.invuln, 1.6);
+
+    // NOTE: .list — because enemyBullets is now a Pool, not an array
+    for (const b of this.game.enemyBullets.list) b.alive = false;
+
+    for (const e of this.game.entities) {
+      if (e === this || !e.alive) continue;
+      if (typeof e.hit !== 'function') continue;
+      e.killedByBomb = true;
+      e.hit(15);
+    }
+
+    this.game.bombFlash = 0.45;
+    explosions.bomb(this.game, this.x, this.y);
   }
 
   hit() {

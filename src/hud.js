@@ -11,5 +11,9 @@ export class Hud {
     ctx.fillText(`LV    ${game.player?.weapon ?? 1}`, 8, 56);
     ctx.textAlign = 'right';
     ctx.fillText(`LV ${game.level?.def.name ?? ''}`, W - 8, 20);
+    ctx.fillText(`SCORE ${game.player?.score ?? 0}`, W - 8, 38);
+    ctx.fillText(`B:${game.bullets.size}/${game.bullets.freeCount}`,       W - 8, 56);
+    ctx.fillText(`E:${game.enemyBullets.size}/${game.enemyBullets.freeCount}`, W - 8, 74);
+    ctx.fillText(`P:${game.particles.size}/${game.particles.freeCount}`,   W - 8, 92);
   }
 }
