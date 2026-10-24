@@ -260,11 +260,11 @@ function drawBanner(banner) {
     ctx.restore();
 }
 
-start();
 const initAudio = () => {
   audio.init();
   audio.resume();
   audio.startMusic();
+  audio.startAmbience();
   removeEventListener('keydown', initAudio);
   removeEventListener('pointerdown', initAudio);
 };
@@ -275,4 +275,5 @@ addEventListener('pointerdown', initAudio);
 addEventListener('keydown', e => {
   if (e.code === 'KeyM') audio.toggleMute();
 });
+start();
 requestAnimationFrame(frame);

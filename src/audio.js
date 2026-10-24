@@ -5,18 +5,30 @@ export class AudioManager {
         this.masterGain = null;
         this.sfxGain = null;
         this.musicGain = null;
-        this.musicTimer = null;
-        this.musicPlaying = false;
+        this.ambienceGain = null;
+
         this.enabled = true;
-        this.sfxVolume = 0.35;
-        this.musicVolume = 0.25;
+        this.sfxVolume = 0.35;       // all SFX
+        this.musicVolume = 0.25;     // bgm_main.mp3
+        this.ambienceVolume = 0.15;  // ambience.wav
         this.lastShotAt = 0;
 
-        // Loaded sample buffers (populated after init)
+        // Sample buffers
         this.buffers = {};
         this.musicBuffer = null;
+        this.ambienceBuffer = null;
+
+        // Playback state
+        this.musicPlaying = false;
         this.musicSource = null;
+        this.musicTimer = null;
+
+        this.ambiencePlaying = false;
+        this.ambienceSource = null;
+
+        // Pending starts (buffer not loaded yet)
         this._pendingMusicStart = false;
+        this._pendingAmbienceStart = false;
         this._musicLoadFailed = false;
     }
 
@@ -37,27 +49,27 @@ export class AudioManager {
         this.musicGain.gain.value = this.musicVolume;
         this.musicGain.connect(this.masterGain);
 
-        // Kick off async loads — safe, they resolve when ready
-        this._loadSamples();
+        this.ambienceGain = this.ctx.createGain();
+        this.ambienceGain.gain.value = this.ambienceVolume;
+        this.ambienceGain.connect(this.masterGain);
 
-        // Attempt to resume context if suspended (common browser behavior)
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume().then(() => {
-                console.log('AudioContext resumed successfully.');
-            }).catch(err => {
-                console.error('Failed to resume AudioContext:', err);
-            });
-        }
+        this._loadSamples();
     }
 
     async _loadSamples() {
         const sfxFiles = {
+            explode_small: 'assets/sfx/explode_small.wav',
             explode_medium: 'assets/sfx/explode_medium.wav',
+            explode_large: 'assets/sfx/explode_large.wav',
+            playerHit: 'assets/sfx/playerHit.wav',
             pickup: 'assets/sfx/pickup.wav',
+            bomb: 'assets/sfx/bomb.wav',
         };
-        const loads = Object.entries(sfxFiles).map(async ([key, url]) => {
+
+        const sfxLoads = Object.entries(sfxFiles).map(async ([key, url]) => {
             try {
                 const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const buf = await res.arrayBuffer();
                 this.buffers[key] = await this.ctx.decodeAudioData(buf);
             } catch (err) {
@@ -65,18 +77,15 @@ export class AudioManager {
             }
         });
 
+        // Music
         try {
             const res = await fetch('assets/music/bgm_main.mp3');
-            if (!res.ok) {
-                console.error(`Failed to fetch music: HTTP ${res.status}`);
-                throw new Error(`HTTP ${res.status}`);
-            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const buf = await res.arrayBuffer();
             this.musicBuffer = await this.ctx.decodeAudioData(buf);
             if (this._pendingMusicStart) {
                 this._pendingMusicStart = false;
                 this.startMusic();
-                consle.log('Music started after load.');
             }
         } catch (err) {
             console.warn('Failed to load music', err);
@@ -87,7 +96,21 @@ export class AudioManager {
             }
         }
 
-        await Promise.all(loads);
+        // Ambience (looping texture — no synth fallback)
+        try {
+            const res = await fetch('assets/sfx/ambience.wav');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const buf = await res.arrayBuffer();
+            this.ambienceBuffer = await this.ctx.decodeAudioData(buf);
+            if (this._pendingAmbienceStart) {
+                this._pendingAmbienceStart = false;
+                this.startAmbience();
+            }
+        } catch (err) {
+            console.warn('Failed to load ambience', err);
+        }
+
+        await Promise.all(sfxLoads);
     }
 
     resume() {
@@ -168,24 +191,26 @@ export class AudioManager {
     }
 
     scout() {
+        if (this._sample('explode_small', { vol: 0.7 })) return;
         this._noise(0.14, { vol: 0.13 });
         this._tone(220, 0.14, { type: 'sawtooth', vol: 0.08, endFreq: 90 });
     }
 
     midboss() {
-        // Try sample first, fall back to synth if not loaded
         if (this._sample('explode_medium', { vol: 0.7 })) return;
         this._noise(0.35, { vol: 0.18 });
         this._tone(150, 0.35, { type: 'sawtooth', vol: 0.14, endFreq: 40 });
     }
 
     boss() {
+        if (this._sample('explode_large', { vol: 0.8 })) return;
         this._noise(0.9, { vol: 0.22 });
         this._tone(100, 0.9, { type: 'sawtooth', vol: 0.18, endFreq: 30 });
         this._tone(60, 0.9, { type: 'square', vol: 0.12, endFreq: 20 });
     }
 
     playerHit() {
+        if (this._sample('playerHit', { vol: 0.8 })) return;
         this._noise(0.28, { vol: 0.2 });
         this._tone(320, 0.28, { type: 'sawtooth', vol: 0.14, endFreq: 60 });
     }
@@ -197,6 +222,7 @@ export class AudioManager {
     }
 
     bomb() {
+        if (this._sample('bomb', { vol: 0.8 })) return;
         this._noise(0.5, { vol: 0.28 });
         this._tone(200, 0.5, { type: 'sawtooth', vol: 0.18, endFreq: 40 });
     }
@@ -220,43 +246,9 @@ export class AudioManager {
 
     // ---- music ----
 
-    // startMusic() {
-    //     if (this.musicPlaying || !this.ctx) return;
-    //     if (this.musicBuffer) {
-    //         this.musicPlaying = true;
-    //         this.musicSource = this.ctx.createBufferSource();
-    //         this.musicSource.buffer = this.musicBuffer;
-    //         this.musicSource.loop = true;
-    //         this.musicSource.connect(this.musicGain);
-    //         this.musicSource.start();
-    //         return;
-    //     }
-    //     // Fallback: synth arpeggio if sample not loaded yet
-    //     this.musicPlaying = true;
-    //     const notes = [220, 262, 330, 262];
-    //     let step = 0;
-    //     this.musicTimer = setInterval(() => {
-    //         if (!this.musicPlaying || !this.enabled) return;
-    //         const now = this.ctx.currentTime;
-    //         const freq = notes[step % notes.length];
-    //         step++;
-    //         const o = this.ctx.createOscillator();
-    //         const g = this.ctx.createGain();
-    //         o.type = 'triangle';
-    //         o.frequency.value = freq;
-    //         g.gain.setValueAtTime(0.06, now);
-    //         g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-    //         o.connect(g);
-    //         g.connect(this.musicGain);
-    //         o.start(now);
-    //         o.stop(now + 0.24);
-    //     }, 240);
-    // }
-
     startMusic() {
         if (this.musicPlaying || !this.ctx) return;
 
-        // Buffer ready → play the MP3
         if (this.musicBuffer) {
             this.musicPlaying = true;
             this.musicSource = this.ctx.createBufferSource();
@@ -267,13 +259,11 @@ export class AudioManager {
             return;
         }
 
-        // Load failed → permanent synth fallback
         if (this._musicLoadFailed) {
             this._startSynthMusic();
             return;
         }
 
-        // Still loading → remember, will fire when buffer arrives
         this._pendingMusicStart = true;
     }
 
@@ -304,5 +294,31 @@ export class AudioManager {
         this.musicPlaying = false;
         if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; }
         if (this.musicSource) { try { this.musicSource.stop(); } catch { } this.musicSource = null; }
+    }
+
+    // ---- ambience (looping background texture) ----
+
+    startAmbience() {
+        if (this.ambiencePlaying || !this.ctx) return;
+
+        if (this.ambienceBuffer) {
+            this.ambiencePlaying = true;
+            this.ambienceSource = this.ctx.createBufferSource();
+            this.ambienceSource.buffer = this.ambienceBuffer;
+            this.ambienceSource.loop = true;
+            this.ambienceSource.connect(this.ambienceGain);
+            this.ambienceSource.start();
+            return;
+        }
+
+        this._pendingAmbienceStart = true;
+    }
+
+    stopAmbience() {
+        this.ambiencePlaying = false;
+        if (this.ambienceSource) {
+            try { this.ambienceSource.stop(); } catch { }
+            this.ambienceSource = null;
+        }
     }
 }
