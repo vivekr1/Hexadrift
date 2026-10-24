@@ -82,6 +82,13 @@ export function runCollisions(game) {
 
 
 export function onEnemyDeath(game, e) {
+  if (game.triggerShake && e.y > 0 && e.y < game.H) {
+    if (e.r >= 40)      game.triggerShake(0.8, 20);
+    else if (e.r >= 20) game.triggerShake(0.4, 10);
+    else                game.triggerShake(0.15, 4);
+}
+if (e.r >= 40) game.triggerHitStop?.(0.12);
+
   // Pick explosion size from enemy radius.
   if (e.r >= 40)      {explosions.boss(game, e.x, e.y);game.audio.boss();}
   else if (e.r >= 20) {explosions.midboss(game, e.x, e.y);game.audio.midboss();}
@@ -94,6 +101,8 @@ export function onEnemyDeath(game, e) {
   if (e.r >= 40)      rank = 'boss';
   else if (e.r >= 20) rank = 'uncommon';
   maybeDrop(game, e.x, e.y, rank);
+
+
 
   if (game.player) game.player.score += 50;
 }

@@ -1,1 +1,25 @@
-// Level 2 specific logic
+// src/levels/level2.js
+export const level2 = {
+  stage: 2,
+  name: 'Enemy Fleet',
+  introDuration: 3.0,
+  warningDuration: 2.5,
+  clearDuration: 4.0,
+  waves: [
+    { t: 1,  spawn: 'scoutLine', count: 6 },
+    { t: 5,  spawn: 'scoutSine', count: 6 },
+    { t: 9,  spawn: 'turretSides' },
+    { t: 14, spawn: 'heavy',     count: 3 },
+    { t: 19, spawn: 'scoutLine', count: 8 },
+    { t: 23, spawn: 'diver',     count: 10 },
+    { t: 29, spawn: 'scoutSine', count: 8 },
+    { t: 34, spawn: 'midboss1' },
+    { t: 44, spawn: 'scoutLine', count: 8 },
+    { t: 48, spawn: 'turretSides' },
+    { t: 54, spawn: 'diver',     count: 12 },
+    { t: 60, spawn: 'heavy',     count: 4 },
+    { t: 66, spawn: 'scoutSine', count: 10 },
+  ],
+  bossAt: 75,
+  boss: 'boss2',
+};

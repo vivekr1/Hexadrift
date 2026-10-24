@@ -6,30 +6,43 @@ export class AudioManager {
         this.sfxGain = null;
         this.musicGain = null;
         this.ambienceGain = null;
+        this.gameOverGain = null;
 
         this.enabled = true;
-        this.sfxVolume = 0.35;       // all SFX
-        this.musicVolume = 0.25;     // bgm_main.mp3
-        this.ambienceVolume = 0.15;  // ambience.wav
+        this.sfxVolume = 0.35;
+        this.musicVolume = 0.25;
+        this.ambienceVolume = 0.15;
         this.lastShotAt = 0;
 
-        // Sample buffers
+        // Buffers
         this.buffers = {};
-        this.musicBuffer = null;
+        this.musicBuffers = [null, null, null, null];
         this.ambienceBuffer = null;
+        this.menuBuffer = null;
+        this.gameOverBuffer = null;
 
-        // Playback state
+        // Music state
+                // Music state
         this.musicPlaying = false;
         this.musicSource = null;
         this.musicTimer = null;
+        this._pendingMusicStage = -1;
+        this._musicLoadFailed = false;
 
+        
+        // Ambience state
         this.ambiencePlaying = false;
         this.ambienceSource = null;
-
-        // Pending starts (buffer not loaded yet)
-        this._pendingMusicStart = false;
         this._pendingAmbienceStart = false;
-        this._musicLoadFailed = false;
+
+        // Menu music state
+        this.menuPlaying = false;
+        this.menuSource = null;
+        this._pendingMenuStart = false;
+
+        // Game-over music state
+        this.gameOverPlaying = false;
+        this.gameOverSource = null;
     }
 
     init() {
@@ -52,6 +65,10 @@ export class AudioManager {
         this.ambienceGain = this.ctx.createGain();
         this.ambienceGain.gain.value = this.ambienceVolume;
         this.ambienceGain.connect(this.masterGain);
+
+        this.gameOverGain = this.ctx.createGain();
+        this.gameOverGain.gain.value = this.musicVolume;
+        this.gameOverGain.connect(this.masterGain);
 
         this._loadSamples();
     }
@@ -77,26 +94,40 @@ export class AudioManager {
             }
         });
 
-        // Music
+        // Music — load all 4 stage tracks in parallel
+        const musicFiles = [
+            'assets/music/stage1.mp3',
+            'assets/music/stage2.mp3',
+            'assets/music/stage3.mp3',
+            'assets/music/stage4.mp3',
+        ];
+        musicFiles.forEach((url, i) => this._loadOneMusic(i, url));
+
+        // Menu music
         try {
-            const res = await fetch('assets/music/bgm_main.mp3');
+            const res = await fetch('assets/music/menu.mp3');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const buf = await res.arrayBuffer();
-            this.musicBuffer = await this.ctx.decodeAudioData(buf);
-            if (this._pendingMusicStart) {
-                this._pendingMusicStart = false;
-                this.startMusic();
+            this.menuBuffer = await this.ctx.decodeAudioData(buf);
+            if (this._pendingMenuStart) {
+                this._pendingMenuStart = false;
+                this.startMenuMusic();
             }
         } catch (err) {
-            console.warn('Failed to load music', err);
-            this._musicLoadFailed = true;
-            if (this._pendingMusicStart) {
-                this._pendingMusicStart = false;
-                this._startSynthMusic();
-            }
+            console.warn('Failed to load menu music', err);
         }
 
-        // Ambience (looping texture — no synth fallback)
+        // Game-over theme
+        try {
+            const res = await fetch('assets/sfx/game_over.mp3');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const buf = await res.arrayBuffer();
+            this.gameOverBuffer = await this.ctx.decodeAudioData(buf);
+        } catch (err) {
+            console.warn('Failed to load game_over', err);
+        }
+
+        // Ambience
         try {
             const res = await fetch('assets/sfx/ambience.wav');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -112,6 +143,32 @@ export class AudioManager {
 
         await Promise.all(sfxLoads);
     }
+
+    async _loadOneMusic(index, url) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const buf = await res.arrayBuffer();
+            this.musicBuffers[index] = await this.ctx.decodeAudioData(buf);
+
+            if (this._pendingMusicStage === index) {
+                this._pendingMusicStage = -1;
+                this.startMusic(index);
+            }
+        } catch (err) {
+            console.warn(`Failed to load stage ${index + 1} music:`, url, err);
+            if (this._pendingMusicStage === index) {
+                this._pendingMusicStage = -1;
+                if (index !== 0 && this.musicBuffers[0]) {
+                    this.startMusic(0);
+                } else {
+                    this._musicLoadFailed = true;
+                    this._startSynthMusic();
+                }
+            }
+        }
+    }
+
 
     resume() {
         if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
@@ -230,7 +287,7 @@ export class AudioManager {
     warning() {
         this._tone(440, 0.12, { type: 'square', vol: 0.14 });
         setTimeout(() => this._tone(440, 0.12, { type: 'square', vol: 0.14 }), 180);
-        setTimeout(() => this._tone(660, 0.2, { type: 'square', vol: 0.16 }), 360);
+        setTimeout(() => this._tone(660, 0.2,  { type: 'square', vol: 0.16 }), 360);
     }
 
     stageClear() {
@@ -240,31 +297,79 @@ export class AudioManager {
     }
 
     gameOver() {
+        if (this.gameOverPlaying || !this.ctx) return;
+
+        // Hard stop bgm + ambience — no fade race
+        if (this.musicSource) {
+            try { this.musicSource.stop(); } catch {}
+            this.musicSource = null;
+        }
+        if (this.ambienceSource) {
+            try { this.ambienceSource.stop(); } catch {}
+            this.ambienceSource = null;
+        }
+        this.musicPlaying = false;
+        this.ambiencePlaying = false;
+
+        // Ensure gains are at their normal values (in case prior fade left them at 0)
+        const now = this.ctx.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.value = this.musicVolume;
+        this.ambienceGain.gain.cancelScheduledValues(now);
+        this.ambienceGain.gain.value = this.ambienceVolume;
+
+        // Start looping game-over theme
+        if (this.gameOverBuffer) {
+            this.gameOverPlaying = true;
+            this.gameOverSource = this.ctx.createBufferSource();
+            this.gameOverSource.buffer = this.gameOverBuffer;
+            this.gameOverSource.loop = true;
+            this.gameOverSource.connect(this.gameOverGain);
+            this.gameOverSource.start();
+            return;
+        }
+
+        // Fallback synth
         this._tone(440, 0.3, { type: 'triangle', vol: 0.2, endFreq: 220 });
         setTimeout(() => this._tone(220, 0.6, { type: 'triangle', vol: 0.2, endFreq: 80 }), 350);
     }
 
+    stopGameOverMusic() {
+        this.gameOverPlaying = false;
+        if (this.gameOverSource) {
+            try { this.gameOverSource.stop(); } catch {}
+            this.gameOverSource = null;
+        }
+    }
+
     // ---- music ----
 
-    startMusic() {
-        if (this.musicPlaying || !this.ctx) return;
-
-        if (this.musicBuffer) {
+        startMusic(stageIndex = 0) {
+        if (!this.ctx) return;
+        this._stopMusicSource();
+        const buf = this.musicBuffers[stageIndex]
+                 ?? this.musicBuffers[0]
+                 ?? null;
+        if (buf) {
             this.musicPlaying = true;
             this.musicSource = this.ctx.createBufferSource();
-            this.musicSource.buffer = this.musicBuffer;
+            this.musicSource.buffer = buf;
             this.musicSource.loop = true;
             this.musicSource.connect(this.musicGain);
             this.musicSource.start();
             return;
         }
-
         if (this._musicLoadFailed) {
             this._startSynthMusic();
             return;
         }
+        this._pendingMusicStage = stageIndex;
+    }
 
-        this._pendingMusicStart = true;
+    _stopMusicSource() {
+        this.musicPlaying = false;
+        if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; }
+        if (this.musicSource) { try { this.musicSource.stop(); } catch {} this.musicSource = null; }
     }
 
     _startSynthMusic() {
@@ -290,13 +395,11 @@ export class AudioManager {
         }, 240);
     }
 
-    stopMusic() {
-        this.musicPlaying = false;
-        if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; }
-        if (this.musicSource) { try { this.musicSource.stop(); } catch { } this.musicSource = null; }
+        stopMusic() {
+        this._stopMusicSource();
     }
 
-    // ---- ambience (looping background texture) ----
+    // ---- ambience ----
 
     startAmbience() {
         if (this.ambiencePlaying || !this.ctx) return;
@@ -317,8 +420,34 @@ export class AudioManager {
     stopAmbience() {
         this.ambiencePlaying = false;
         if (this.ambienceSource) {
-            try { this.ambienceSource.stop(); } catch { }
+            try { this.ambienceSource.stop(); } catch {}
             this.ambienceSource = null;
+        }
+    }
+
+    // ---- menu music ----
+
+    startMenuMusic() {
+        if (this.menuPlaying || !this.ctx) return;
+
+        if (this.menuBuffer) {
+            this.menuPlaying = true;
+            this.menuSource = this.ctx.createBufferSource();
+            this.menuSource.buffer = this.menuBuffer;
+            this.menuSource.loop = true;
+            this.menuSource.connect(this.musicGain);
+            this.menuSource.start();
+            return;
+        }
+
+        this._pendingMenuStart = true;
+    }
+
+    stopMenuMusic() {
+        this.menuPlaying = false;
+        if (this.menuSource) {
+            try { this.menuSource.stop(); } catch {}
+            this.menuSource = null;
         }
     }
 }

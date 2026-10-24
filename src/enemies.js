@@ -5,8 +5,10 @@ export function spawn(game, wave) {
     case 'scoutLine': return line(game, wave.count, 'scout');
     case 'scoutSine': return sine(game, wave.count, 'scout');
     case 'diver':     return divers(game, wave.count);
+    case 'heavy':     return heavyWave(game, wave.count);
     case 'turretSides': return turrets(game);
     case 'midboss1':  return midboss1(game);
+    
   }
 }
 
@@ -126,6 +128,43 @@ function turrets(game) {
           b.r = 5;
           b.color = '#f4f';
         }
+      });
+  }
+}
+
+function heavyWave(game, count) {
+  const spacing = count <= 4 ? 100 : Math.floor(300 / (count - 1));
+  const startX = 240 - (spacing * (count - 1)) / 2;
+  for (let i = 0; i < count; i++) {
+    baseEnemy(game, startX + i * spacing, -40 - i * 30, 15, 20,
+      function (ctx) {
+        ctx.fillStyle = '#f80';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#800';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      },
+      function (dt) {
+        this.y += 90 * dt;
+        this.cd = (this.cd ?? 2) - dt;
+        if (this.cd <= 0 && this.y > 50) {
+          this.cd = 2.5;
+          const p = game.player;
+          if (!p) return;
+          const dx = p.x - this.x, dy = p.y - this.y;
+          const len = Math.hypot(dx, dy);
+          const b = game.enemyBullets.spawn();
+          b.x = this.x;
+          b.y = this.y + 20;
+          b.vx = (dx / len) * 200;
+          b.vy = (dy / len) * 200;
+          b.r = 6;
+          b.color = '#fa4';
+        }
+        if (this.y > 900) this.alive = false;
       });
   }
 }

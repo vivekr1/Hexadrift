@@ -1,1 +1,25 @@
-// Level 3 specific logic
+// src/levels/level3.js
+export const level3 = {
+  stage: 3,
+  name: 'Planet Surface',
+  introDuration: 3.0,
+  warningDuration: 2.5,
+  clearDuration: 4.0,
+  waves: [
+    { t: 1,  spawn: 'turretSides' },
+    { t: 6,  spawn: 'heavy',      count: 3 },
+    { t: 12, spawn: 'scoutLine',  count: 8 },
+    { t: 18, spawn: 'scoutSine',  count: 8 },
+    { t: 24, spawn: 'diver',      count: 12 },
+    { t: 30, spawn: 'midboss1' },
+    { t: 40, spawn: 'heavy',      count: 4 },
+    { t: 46, spawn: 'turretSides' },
+    { t: 52, spawn: 'diver',      count: 14 },
+    { t: 58, spawn: 'scoutSine',  count: 12 },
+    { t: 64, spawn: 'heavy',      count: 5 },
+    { t: 70, spawn: 'scoutLine',  count: 10 },
+    { t: 76, spawn: 'diver',      count: 12 },
+  ],
+  bossAt: 90,
+  boss: 'boss3',
+};

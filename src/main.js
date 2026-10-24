@@ -3,10 +3,11 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { Level } from './level.js';
 import { Hud } from './hud.js';
-import { level1 } from './levels/level1.js';
+import { LEVELS } from './levels/index.js';
 import { runCollisions } from './collision.js'
 import { Pool } from './pool.js';
 import { AudioManager } from './audio.js';
+import { Menu } from './menu.js';
 
 
 // ----- Pooled object factories -----
@@ -107,9 +108,59 @@ const game = {
     pickups: [],
     entities: [],
     bombFlash: 0,
+    shakeTime: 0,      // seconds remaining
+    shakeDur: 1,       // initial duration (for normalization)
+    shakePower: 0,     // max px offset
+    hitStop: 0,
     level: null,
     player: null,
     audio,
+    audioInited: false,
+    started: false,
+    fadeAlpha: 0,
+    fadeDir: 0,
+};
+
+
+function triggerShake(duration, power) {
+    console.log(`Triggering shake: ${duration}s, ${power}px`);
+    if (game.shakeTime <= 0 || duration > game.shakeTime) {
+        game.shakeTime = duration;
+        game.shakeDur = duration;
+    }
+    if (power > game.shakePower) game.shakePower = power;
+}
+game.triggerShake = triggerShake;
+
+function triggerHitStop(seconds) {
+    if (seconds > game.hitStop) game.hitStop = seconds;
+}
+game.triggerHitStop = triggerHitStop;
+
+window.__game = game;
+window.__gameLevelModule = { Level };
+const menu = new Menu(game);
+game.menu = menu;
+game.paused = false;
+
+game.startGame = () => {
+    if (game.started) return;
+    game.started = true;
+    game.paused = false;
+    audio.stopMenuMusic();
+    audio.stopGameOverMusic();
+    audio.startMusic(0);
+    audio.startAmbience();
+
+    game.bullets.cull(() => false);
+    game.enemyBullets.cull(() => false);
+    game.particles.cull(() => false);
+    game.pickups = [];
+    game.bombFlash = 0;
+
+    game.player = new Player(game, W / 2, H - 100);
+    game.level = new Level(game, 0);
+    game.entities = [game.player];
 };
 
 // near the top
@@ -118,11 +169,6 @@ addEventListener('keydown', e => {
     if (e.code === 'Backquote') debugHit = !debugHit; // ` key
 });
 
-function start() {
-    game.player = new Player(game, W / 2, H - 100);
-    game.level = new Level(game, level1);
-    game.entities.push(game.player);
-}
 
 let last = performance.now();
 let acc = 0;
@@ -142,11 +188,37 @@ function frame(now) {
 }
 
 function update(dt) {
-    if (!game.running) return;
     game.time += dt;
+    // Decay timers
+    if (game.shakeTime > 0) game.shakeTime -= dt;
+    if (game.shakeTime <= 0) game.shakePower = 0;
+
+    // Hit-stop: freeze gameplay, don't update input (so keypresses carry over)
+    if (game.hitStop > 0) {
+        game.hitStop -= dt;
+        return;
+    }
+
+    // Menu (title / highscores / nameEntry) — active when !game.started
+    if (menu.active) {
+        menu.update();
+        input.update();
+        return;
+    }
+
+    // Pause toggle
+    if (input.justPressed('KeyP') || input.justPressed('Escape')) {
+        game.paused = !game.paused;
+    }
+    if (game.paused) {
+        input.update();
+        return;
+    }
+
+    if (!game.running) { input.update(); return; }
     if (game.bombFlash > 0) game.bombFlash -= dt;
 
-    game.level.update(dt);         // may reassign game.level — fine
+    game.level.update(dt);
     for (const e of game.entities) e.update(dt);
 
     game.bullets.update(dt);
@@ -170,8 +242,25 @@ function render() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    // simple scrolling starfield as placeholder background
+    ctx.save();
+
+    // Shake only the game world, not the HUD
+    if (game.shakeTime > 0 && game.shakeDur > 0) {
+        const k = game.shakeTime / game.shakeDur;   // 1 → 0 over duration
+        const mag = game.shakePower * k;
+        const dx = (Math.random() - 0.5) * 2 * mag;
+        const dy = (Math.random() - 0.5) * 2 * mag;
+        ctx.translate(dx, dy);
+        console.log('[render-shake]', game.shakeTime, mag, dx, dy);
+    }
+
     drawStars(ctx, game.time);
+
+    if (menu.active) {
+        menu.render(ctx, W, H);
+        ctx.restore();
+        return;
+    }
 
     game.particles.draw(ctx);
     for (const e of game.entities) e.draw(ctx);
@@ -179,9 +268,8 @@ function render() {
     for (const p of game.pickups) p.draw(ctx);
     game.enemyBullets.draw(ctx);
 
-    // Bomb flash: expanding white ring from the player
     if (game.bombFlash > 0 && game.player) {
-        const a = game.bombFlash / 0.45;              // 0..1
+        const a = game.bombFlash / 0.45;
         const radius = (1 - a) * 700;
         ctx.save();
         ctx.strokeStyle = `rgba(255, 255, 200, ${a * 0.9})`;
@@ -189,17 +277,54 @@ function render() {
         ctx.beginPath();
         ctx.arc(game.player.x, game.player.y, radius, 0, Math.PI * 2);
         ctx.stroke();
-
-        // Soft white overlay
         ctx.fillStyle = `rgba(255, 255, 220, ${a * 0.25})`;
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
     }
+
     const banner = game.level?.getBanner?.();
     if (banner) drawBanner(banner);
 
+    ctx.restore();    // end of game-world save
+
+
+    // Red pulse during WARNING state
+    if (game.level?.state === 'warning') {
+        const pulse = 0.5 + 0.5 * Math.sin(game.level.stateTime * 12);
+        ctx.fillStyle = `rgba(180, 20, 20, ${pulse * 0.12})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Game-over fade — dims world while ship flies away
+   if (game.level?.state === 'gameover') {
+    const t = game.level.stateTime;
+    const fade = Math.min(0.4, t * 0.25);
+    ctx.fillStyle = `rgba(0, 0, 0, ${fade})`;
+    ctx.fillRect(0, 0, W, H);
+}
+
     hud.draw(game);
     if (debugHit) drawHitboxes(game, ctx);
+
+    if (game.level?.fadeAlpha > 0) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${game.level.fadeAlpha})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    if (game.paused) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 48px monospace';
+        ctx.fillStyle = '#5ef';
+        ctx.fillText('PAUSED', W / 2, H / 2 - 20);
+        ctx.font = '16px monospace';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('P / ESC to resume', W / 2, H / 2 + 40);
+        ctx.restore();
+    }
 }
 
 function drawHitboxes(game, ctx) {
@@ -217,19 +342,60 @@ function drawHitboxes(game, ctx) {
 }
 
 // cheap starfield
-const stars = Array.from({ length: 80 }, () => ({
+// const stars = Array.from({ length: 80 }, () => ({
+//     x: Math.random() * 480,
+//     y: Math.random() * 800,
+//     s: Math.random() * 2 + 0.5,
+//     v: Math.random() * 120 + 60,
+// }));
+// function drawStars(ctx, t) {
+//     const starColors = ['#8af', '#fc8', '#f8a', '#f44'];   // 4 stages, 4 colors
+//     const idx = game.level?.stageIndex ?? 0;
+//     ctx.fillStyle = starColors[idx % starColors.length];
+//     for (const s of stars) {
+//         const y = (s.y + t * s.v) % 800;
+//         ctx.fillRect(s.x | 0, y | 0, s.s | 0 || 1, s.s | 0 || 1);
+//     }
+// }
+
+// Two-layer parallax starfield
+const starsFar = Array.from({ length: 60 }, () => ({
     x: Math.random() * 480,
     y: Math.random() * 800,
-    s: Math.random() * 2 + 0.5,
-    v: Math.random() * 120 + 60,
+    s: Math.random() * 1 + 0.5,
+    v: Math.random() * 60 + 30,     // slow
 }));
+const starsNear = Array.from({ length: 40 }, () => ({
+    x: Math.random() * 480,
+    y: Math.random() * 800,
+    s: Math.random() * 2 + 1,
+    v: Math.random() * 160 + 100,   // fast
+}));
+
+const STAGE_STAR_COLORS = [
+    { far: '#446', near: '#8af' },  // stage 1 — orbital belt
+    { far: '#553', near: '#fc8' },  // stage 2 — enemy fleet
+    { far: '#534', near: '#f8a' },  // stage 3 — planet surface
+    { far: '#411', near: '#f44' },  // stage 4 — demon star core
+];
+
 function drawStars(ctx, t) {
-    ctx.fillStyle = '#8af';
-    for (const s of stars) {
+    const idx = game.level?.stageIndex ?? 0;
+    const palette = STAGE_STAR_COLORS[idx % STAGE_STAR_COLORS.length];
+
+    ctx.fillStyle = palette.far;
+    for (const s of starsFar) {
+        const y = (s.y + t * s.v) % 800;
+        ctx.fillRect(s.x | 0, y | 0, s.s | 0 || 1, s.s | 0 || 1);
+    }
+
+    ctx.fillStyle = palette.near;
+    for (const s of starsNear) {
         const y = (s.y + t * s.v) % 800;
         ctx.fillRect(s.x | 0, y | 0, s.s | 0 || 1, s.s | 0 || 1);
     }
 }
+
 
 
 function drawBanner(banner) {
@@ -260,20 +426,49 @@ function drawBanner(banner) {
     ctx.restore();
 }
 
-const initAudio = () => {
-  audio.init();
-  audio.resume();
-  audio.startMusic();
-  audio.startAmbience();
-  removeEventListener('keydown', initAudio);
-  removeEventListener('pointerdown', initAudio);
+// ---- Two-stage first gesture ----
+// 1. First key/click: init audio, start menu music
+// 2. Second key (Enter/Space) or click: stop menu music, start gameplay
+
+const firstGesture = () => {
+    if (game.audioInited) return;
+    game.audioInited = true;
+    audio.init();
+    audio.resume();
+    audio.startMenuMusic();
+    input.pressed = {};         // swallow this keypress (so Enter doesn't also start the game)
+    removeEventListener('keydown', firstGesture);
+    removeEventListener('pointerdown', firstGesture);
 };
-addEventListener('keydown', initAudio);
-addEventListener('pointerdown', initAudio);
+addEventListener('keydown', firstGesture);
+addEventListener('pointerdown', firstGesture);
 
 // Mute toggle
 addEventListener('keydown', e => {
-  if (e.code === 'KeyM') audio.toggleMute();
+    if (e.code === 'KeyM') audio.toggleMute();
 });
-start();
+
 requestAnimationFrame(frame);
+
+// const startGameHandler = (e) => {
+//     if (game.started) return;
+//     if (e.type === 'keydown' && e.code !== 'Enter' && e.code !== 'Space') return;
+
+//     game.started = true;
+//     audio.stopMenuMusic();
+//     audio.startMusic();
+//     audio.startAmbience();
+//     start();
+
+//     removeEventListener('keydown', startGameHandler);
+//     removeEventListener('pointerdown', startGameHandler);
+// };
+
+// addEventListener('keydown', firstGesture);
+// addEventListener('pointerdown', firstGesture);
+
+// // Mute toggle
+// addEventListener('keydown', e => {
+//     if (e.code === 'KeyM') audio.toggleMute();
+//});
+

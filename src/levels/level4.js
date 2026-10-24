@@ -1,1 +1,28 @@
-// Level 4 specific logic
+// src/levels/level4.js
+export const level4 = {
+  stage: 4,
+  name: 'Demon Star Core',
+  introDuration: 3.0,
+  warningDuration: 3.0,
+  clearDuration: 6.0,
+  waves: [
+    { t: 1,  spawn: 'scoutLine', count: 10 },
+    { t: 5,  spawn: 'turretSides' },
+    { t: 10, spawn: 'diver',     count: 12 },
+    { t: 14, spawn: 'heavy',     count: 4 },
+    { t: 20, spawn: 'scoutSine', count: 10 },
+    { t: 26, spawn: 'midboss1' },
+    { t: 36, spawn: 'scoutLine', count: 12 },
+    { t: 42, spawn: 'diver',     count: 16 },
+    { t: 48, spawn: 'turretSides' },
+    { t: 54, spawn: 'scoutSine', count: 14 },
+    { t: 60, spawn: 'midboss1' },
+    { t: 72, spawn: 'scoutLine', count: 12 },
+    { t: 78, spawn: 'diver',     count: 18 },
+    { t: 84, spawn: 'heavy',     count: 6 },
+    { t: 90, spawn: 'scoutSine', count: 16 },
+    { t: 96, spawn: 'turretSides' },
+  ],
+  bossAt: 105,
+  boss: 'boss4',
+};
