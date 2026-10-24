@@ -71,6 +71,7 @@ export class Player {
   // Signature: offsetX, vx, vy, damage
   spawnBullet(offsetX, vx, vy, damage = 1) {
     const b = this.game.bullets.spawn();
+    this.game.audio.shoot();
     b.x = this.x + offsetX;
     b.y = this.y - 14;
     b.vx = vx;
@@ -96,12 +97,13 @@ export class Player {
     }
 
     this.game.bombFlash = 0.45;
-    explosions.bomb(this.game, this.x, this.y);
+    this.game.audio.bomb();explosions.bomb(this.game, this.x, this.y);
   }
 
   hit() {
     if (this.invuln > 0) return;
     this.lives--;
+    this.game.audio.playerHit();
     this.invuln = 2;
     if (this.lives < 0) this.alive = false;
   }

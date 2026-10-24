@@ -1,33 +1,23 @@
-// Boss logic// src/boss.js
-// Boss factory. Each boss is a state machine with 2-3 phases.
-// Register new bosses in BOSSES below.
-
+// src/boss.js
 export function spawnBoss(game, name) {
   const factory = BOSSES[name];
   if (!factory) {
     console.warn('Unknown boss:', name);
-    return;
+    return null;
   }
   return factory(game);
 }
 
-/* ---------- helpers ---------- */
+const FLASH_TIME = 0.08;
 
 function makeBoss(game, opts) {
   const b = {
-    game,
-    kind: 'boss',
-    x: opts.x ?? 240,
-    y: opts.y ?? -120,
-    r: opts.r ?? 50,
-    hp: opts.hp,
-    maxHp: opts.hp,
-    alive: true,
-    t: 0,
-    phase: 0,
-    entering: true,
-    invuln: 0,
-    fireCd: 1.5,
+    game, kind: 'boss',
+    x: opts.x ?? 240, y: opts.y ?? -120, r: opts.r ?? 50,
+    hp: opts.hp, maxHp: opts.hp,
+    alive: true, t: 0, phase: 0,
+    entering: true, invuln: 0, flash: 0,
+    fireCd: 1.5, killedByBomb: false,
     ...opts.extra,
   };
   game.entities.push(b);
@@ -37,7 +27,13 @@ function makeBoss(game, opts) {
 function shootRing(game, x, y, count, speed, offset = 0, color = '#f6f') {
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2 + offset;
-    game.enemyBullets.push(makeEnemyBullet(x, y, Math.cos(a) * speed, Math.sin(a) * speed, 6, color));
+    const b = game.enemyBullets.spawn();
+    b.x = x;
+    b.y = y;
+    b.vx = Math.cos(a) * speed;
+    b.vy = Math.sin(a) * speed;
+    b.r = 6;
+    b.color = color;
   }
 }
 
@@ -46,27 +42,14 @@ function shootAimed(game, x, y, speed, spread = 0, color = '#f4f') {
   if (!p) return;
   const dx = p.x - x, dy = p.y - y;
   const base = Math.atan2(dy, dx) + spread;
-  game.enemyBullets.push(makeEnemyBullet(x, y, Math.cos(base) * speed, Math.sin(base) * speed, 5, color));
+  const b = game.enemyBullets.spawn();
+  b.x = x;
+  b.y = y;
+  b.vx = Math.cos(base) * speed;
+  b.vy = Math.sin(base) * speed;
+  b.r = 5;
+  b.color = color;
 }
-
-function makeEnemyBullet(x, y, vx, vy, r, color) {
-  return {
-    x, y, vx, vy, r, alive: true, color,
-    update(dt) {
-      this.x += this.vx * dt;
-      this.y += this.vy * dt;
-      if (this.y > 900 || this.y < -40 || this.x < -40 || this.x > 520) this.alive = false;
-    },
-    draw(ctx) {
-      ctx.fillStyle = this.color;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-      ctx.fill();
-    },
-  };
-}
-
-const FLASH_TIME = 0.08;
 
 function damageFlash(b, ctx) {
   if (b.flash > 0) {
@@ -77,9 +60,17 @@ function damageFlash(b, ctx) {
   }
 }
 
-/* ---------- shared update scaffolding ---------- */
+function drawHpBar(b, ctx) {
+  const W = b.game.W;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.fillRect(40, 20, W - 80, 14);
+  ctx.fillStyle = '#f33';
+  ctx.fillRect(42, 22, (W - 84) * Math.max(b.hp, 0) / b.maxHp, 10);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(40, 20, W - 80, 14);
+}
 
-// Call from each boss update to handle: entrance, phase transitions, flash decay.
 function bossCommon(b, dt, enterY) {
   b.t += dt;
   if (b.flash > 0) b.flash -= dt;
@@ -88,10 +79,9 @@ function bossCommon(b, dt, enterY) {
   if (b.entering) {
     b.y += 80 * dt;
     if (b.y >= enterY) { b.y = enterY; b.entering = false; }
-    return true; // still entering: skip attack logic
+    return true;
   }
 
-  // Phase transition: cross 66% and 33% thresholds once each
   const pct = b.hp / b.maxHp;
   if (b.phase === 0 && pct <= 0.66) { b.phase = 1; b.onPhase?.(1); }
   else if (b.phase === 1 && pct <= 0.33) { b.phase = 2; b.onPhase?.(2); }
@@ -99,10 +89,8 @@ function bossCommon(b, dt, enterY) {
   return false;
 }
 
-/* ---------- Boss 1: Orbital Guardian ---------- */
-
 function boss1(game) {
-  const b = makeBoss(game, {
+  return makeBoss(game, {
     hp: 220,
     x: 240,
     y: -120,
@@ -110,9 +98,12 @@ function boss1(game) {
     extra: {
       entering: true,
       flash: 0,
-      onPhase(p) { this.fireCd = 0.6; this.pattern = p; },
-      pattern: 0,
-      hit(dmg) { this.hp -= dmg; this.flash = 0.08; if (this.hp <= 0) this.alive = false; },
+      onPhase(p) { this.fireCd = 0.6; },
+      hit(dmg) {
+        this.hp -= dmg;
+        this.flash = FLASH_TIME;
+        if (this.hp <= 0) this.alive = false;
+      },
       update(dt) {
         if (bossCommon(this, dt, 130)) return;
         this.x = 240 + Math.sin(this.t * 0.9) * 140;
@@ -121,8 +112,8 @@ function boss1(game) {
         if (this.fireCd > 0) return;
 
         if (this.phase === 0) {
-          shootAimed(game, this.x, this.y + 30, 240, 0, '#f4f');
-          shootAimed(game, this.x, this.y + 30, 240, 0.15, '#f4f');
+          shootAimed(game, this.x, this.y + 30, 240, 0,     '#f4f');
+          shootAimed(game, this.x, this.y + 30, 240, 0.15,  '#f4f');
           shootAimed(game, this.x, this.y + 30, 240, -0.15, '#f4f');
           this.fireCd = 1.1;
         } else if (this.phase === 1) {
@@ -135,20 +126,17 @@ function boss1(game) {
         }
       },
       draw(ctx) {
-        ctx.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#fa4' : '#fa3';
+        ctx.fillStyle = this.phase === 2 ? '#f44'
+                      : this.phase === 1 ? '#fa4'
+                      : '#fa3';
         ctx.fillRect(this.x - 55, this.y - 35, 110, 70);
         ctx.fillStyle = '#511';
         ctx.fillRect(this.x - 40, this.y - 20, 80, 40);
         damageFlash(this, ctx);
+        drawHpBar(this, ctx);
       },
     },
   });
-  return b;
 }
 
-/* ---------- Registry ---------- */
-
-const BOSSES = {
-  boss1,
-  // boss2, boss3, boss4 later
-};
+const BOSSES = { boss1 };

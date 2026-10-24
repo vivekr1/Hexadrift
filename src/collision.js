@@ -31,6 +31,7 @@ export function runCollisions(game) {
         e.hit(b.damage ?? 1);
         b.alive = false;
         explosions.bulletHit(game, b.x, b.y); 
+        game.audio.enemyHit();
         if (!e.alive) onEnemyDeath(game, e);
         break;
       }
@@ -82,9 +83,9 @@ export function runCollisions(game) {
 
 export function onEnemyDeath(game, e) {
   // Pick explosion size from enemy radius.
-  if (e.r >= 40)      explosions.boss(game, e.x, e.y);
-  else if (e.r >= 20) explosions.midboss(game, e.x, e.y);
-  else                explosions.scout(game, e.x, e.y);
+  if (e.r >= 40)      {explosions.boss(game, e.x, e.y);game.audio.boss();}
+  else if (e.r >= 20) {explosions.midboss(game, e.x, e.y);game.audio.midboss();}
+  else                {explosions.scout(game, e.x, e.y);game.audio.scout();}
 
   // No drops from bomb kills.
   if (e.killedByBomb) return;

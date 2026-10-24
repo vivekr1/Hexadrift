@@ -6,6 +6,7 @@ import { Hud } from './hud.js';
 import { level1 } from './levels/level1.js';
 import { runCollisions } from './collision.js'
 import { Pool } from './pool.js';
+import { AudioManager } from './audio.js';
 
 
 // ----- Pooled object factories -----
@@ -93,19 +94,22 @@ const H = canvas.height;
 
 const input = new Input();
 const hud = new Hud(ctx, W, H);
+const audio = new AudioManager();
+window.__audio = audio;
 
 const game = {
     W, H, ctx, input,
     time: 0,
     running: true,
-    bullets:      new Pool(makePlayerBullet, 200),
+    bullets: new Pool(makePlayerBullet, 200),
     enemyBullets: new Pool(makeEnemyBullet, 400),
-    particles:    new Pool(makeParticle, 600),
+    particles: new Pool(makeParticle, 600),
     pickups: [],
     entities: [],
     bombFlash: 0,
     level: null,
     player: null,
+    audio,
 };
 
 // near the top
@@ -138,28 +142,28 @@ function frame(now) {
 }
 
 function update(dt) {
-  if (!game.running) return;
-  game.time += dt;
+    if (!game.running) return;
+    game.time += dt;
+    if (game.bombFlash > 0) game.bombFlash -= dt;
 
-  if (game.bombFlash > 0) game.bombFlash -= dt;
+    game.level.update(dt);         // may reassign game.level — fine
+    for (const e of game.entities) e.update(dt);
 
-  game.level.update(dt);
-  for (const e of game.entities) e.update(dt);
+    game.bullets.update(dt);
+    game.enemyBullets.update(dt);
+    game.particles.update(dt);
 
-  game.bullets.update(dt);
-  game.enemyBullets.update(dt);
-  game.particles.update(dt);
+    runCollisions(game);
 
-  runCollisions(game);
+    const inView = o => o.y > -100 && o.y < H + 100 && o.x > -100 && o.x < W + 100;
+    const inViewEntity = e => e.y > -300 && e.y < H + 200 && e.x > -200 && e.x < W + 200;
+    game.entities = game.entities.filter(e => e.alive && inViewEntity(e));
+    game.bullets.cull(inView);
+    game.enemyBullets.cull(inView);
+    game.particles.cull(p => p.alive);
+    game.pickups = game.pickups.filter(p => p.alive && inView(p));
 
-  const inView = o => o.y > -100 && o.y < H + 100 && o.x > -100 && o.x < W + 100;
-  game.entities = game.entities.filter(e => e.alive && inView(e));
-  game.bullets.cull(inView);
-  game.enemyBullets.cull(inView);
-  game.particles.cull(p => p.alive);
-  game.pickups = game.pickups.filter(p => p.alive && inView(p));
-
-  input.update();
+    input.update();
 }
 
 function render() {
@@ -191,6 +195,8 @@ function render() {
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
     }
+    const banner = game.level?.getBanner?.();
+    if (banner) drawBanner(banner);
 
     hud.draw(game);
     if (debugHit) drawHitboxes(game, ctx);
@@ -225,5 +231,48 @@ function drawStars(ctx, t) {
     }
 }
 
+
+function drawBanner(banner) {
+    const a = banner.alpha ?? 1;
+    if (a <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Main line with drop shadow
+    ctx.font = 'bold 36px monospace';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillText(banner.line1, W / 2 + 2, H / 2 - 30 + 2);
+    ctx.fillStyle = banner.color;
+    ctx.fillText(banner.line1, W / 2, H / 2 - 30);
+
+    // Sub line
+    if (banner.line2) {
+        ctx.font = '20px monospace';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillText(banner.line2, W / 2 + 1, H / 2 + 10 + 1);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(banner.line2, W / 2, H / 2 + 10);
+    }
+
+    ctx.restore();
+}
+
 start();
+const initAudio = () => {
+  audio.init();
+  audio.resume();
+  audio.startMusic();
+  removeEventListener('keydown', initAudio);
+  removeEventListener('pointerdown', initAudio);
+};
+addEventListener('keydown', initAudio);
+addEventListener('pointerdown', initAudio);
+
+// Mute toggle
+addEventListener('keydown', e => {
+  if (e.code === 'KeyM') audio.toggleMute();
+});
 requestAnimationFrame(frame);

@@ -1,7 +1,10 @@
-// Level 1 specific logic// src/levels/level1.js
+// src/levels/level1.js
 export const level1 = {
-  name: 'Asteroid Belt',
-  duration: 60,     // seconds before boss
+  stage: 1,
+  name: 'Orbital Belt',
+  introDuration: 3.0,       // seconds of stage-name banner
+  warningDuration: 2.5,     // seconds of WARNING before boss
+  clearDuration: 5.0,       // seconds of STAGE CLEAR before restart
   waves: [
     { t: 1,  spawn: 'scoutLine', count: 5 },
     { t: 6,  spawn: 'scoutSine', count: 5 },

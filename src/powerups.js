@@ -83,6 +83,7 @@ export function spawnPickup(game, x, y, type) {
 export function applyPickup(game, p) {
   const pl = game.player;
   if (!pl || !pl.alive) return;
+  game.audio.pickup();
 
   if (p.type === 'weapon') {
     // Cap at level 3.
