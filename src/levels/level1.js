@@ -2,6 +2,7 @@
 export const level1 = {
   stage: 1,
   name: 'Orbital Belt',
+  backdrop: 'asteroids',
   introDuration: 3.0,       // seconds of stage-name banner
   warningDuration: 2.5,     // seconds of WARNING before boss
   clearDuration: 5.0,       // seconds of STAGE CLEAR before restart
