@@ -7,7 +7,7 @@ function hits(a, b, ar, br) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   const r = ar + br;
-  return dx * dx + dy * dy <= r * r;
+  return dx * dx + dy * dy < r * r;
 }
 
 export function runCollisions(game) {
