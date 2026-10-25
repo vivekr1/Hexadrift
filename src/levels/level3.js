@@ -2,6 +2,7 @@
 export const level3 = {
   stage: 3,
   name: 'Planet Surface',
+  backdrop: 'clouds',
   introDuration: 3.0,
   warningDuration: 2.5,
   clearDuration: 4.0,

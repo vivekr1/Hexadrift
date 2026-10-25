@@ -2,6 +2,7 @@
 export const level4 = {
   stage: 4,
   name: 'Demon Star Core',
+  backdrop: 'clouds',
   introDuration: 3.0,
   warningDuration: 3.0,
   clearDuration: 6.0,

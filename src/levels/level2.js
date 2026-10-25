@@ -2,6 +2,7 @@
 export const level2 = {
   stage: 2,
   name: 'Enemy Fleet',
+  backdrop: 'none',
   introDuration: 3.0,
   warningDuration: 2.5,
   clearDuration: 4.0,
