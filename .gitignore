@@ -18,3 +18,9 @@ yarn-error.log*
 
 # Game specific temporary files (if any)
 /temp
+
+# Ignore all backup folders anywhere in the project
+**/backup/
+**/backup/**
+
+# folders
