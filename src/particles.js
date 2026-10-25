@@ -1,4 +1,5 @@
 // src/particles.js
+import { clock } from './clock.js';
 
 export function spawnParticle(game, opts) {
   const p = game.particles.spawn();
@@ -21,8 +22,8 @@ export function burst(game, x, y, count, opts = {}) {
   const r = opts.r ?? 3;
 
   for (let i = 0; i < count; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = speed * (0.4 + Math.random() * 0.8);
+    const a = clock.random() * Math.PI * 2;
+    const s = speed * (0.4 + clock.random() * 0.8);
     spawnParticle(game, {
       x, y,
       vx: Math.cos(a) * s,

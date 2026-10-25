@@ -1,4 +1,6 @@
 // src/audio.js
+import { clock } from './clock.js';
+
 export class AudioManager {
     constructor() {
         this.ctx = null;
@@ -237,7 +239,7 @@ export class AudioManager {
     // ---- SFX presets ----
 
     shoot() {
-        const now = performance.now();
+        const now = clock.now();
         if (now - this.lastShotAt < 55) return;
         this.lastShotAt = now;
         this._tone(1100, 0.045, { type: 'square', vol: 0.05, endFreq: 550 });

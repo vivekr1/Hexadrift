@@ -1,6 +1,12 @@
 ﻿// src/main.js — boot, input wiring, game loop
 import { Game } from './game.js';
 import { Level } from './level.js';
+import { clock } from './clock.js';
+
+if (location.search.includes('?test=1')) {
+    clock.enableVirtual();
+    window.__clock = clock;
+}
 
 const canvas = document.getElementById('game');
 const game = new Game(canvas);

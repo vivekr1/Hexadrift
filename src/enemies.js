@@ -1,4 +1,5 @@
 // src/enemies.js
+import { clock } from './clock.js';
 
 export function spawn(game, wave) {
   switch (wave.spawn) {
@@ -86,9 +87,9 @@ function sine(game, count, kind) {
 
 function divers(game, count) {
   for (let i = 0; i < count; i++) {
-    setTimeout(() => {
+    clock.setTimeout(() => {
       const px = game.player?.x ?? 240;
-      baseEnemy(game, px + (Math.random() - 0.5) * 200, -30, 2, 12,
+      baseEnemy(game, px + (clock.random() - 0.5) * 200, -30, 2, 12,
         function (ctx) {
           ctx.fillStyle = '#f6c';
           ctx.fillRect(this.x - 10, this.y - 10, 20, 20);

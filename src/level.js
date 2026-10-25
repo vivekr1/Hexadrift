@@ -2,6 +2,7 @@
 import { spawn as spawnEnemy } from './enemies.js';
 import { spawnBoss } from './boss.js';
 import { LEVELS } from './levels/index.js';
+import { clock } from './clock.js';
 
 export class Level {
   constructor(game, stageIndex = 0) {
@@ -213,7 +214,7 @@ export class Level {
     }
 
     this.game.fadeDir = 1;       // start fade out
-    setTimeout(() => {
+    clock.setTimeout(() => {
       const p = this.game.player;
       if (p) {
         p.x = this.game.W / 2;
