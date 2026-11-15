@@ -1,8 +1,8 @@
-# Requirements — Demon Star
+# Requirements — Demon Starship
 
 ## 1. Overview
 
-**Demon Star** is a browser-based vertical-scrolling shoot-'em-up (shmup),
+**Demon Starship** is a browser-based vertical-scrolling shoot-'em-up (shmup),
 inspired by *DemonStar* (1997). The player pilots a single ship through four
 stages, defeating waves of enemies and a unique multi-phase boss per stage.
 Progress and score are tracked locally; high scores persist across sessions.

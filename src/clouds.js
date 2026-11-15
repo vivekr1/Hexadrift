@@ -9,7 +9,7 @@ const PALETTES = {
         near: 'rgba(220, 170, 195, 0.32)',
         glow: 'rgba(255, 220, 240, 0.10)',
     },
-    3: {  // Demon Star Core — red / black ash clouds
+    3: {  // Demon Starship Core — red / black ash clouds
         far:  'rgba(80, 15, 10, 0.28)',
         near: 'rgba(180, 55, 30, 0.30)',
         glow: 'rgba(255, 120, 40, 0.14)',

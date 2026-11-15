@@ -1,7 +1,7 @@
 // src/levels/level4.js
 export const level4 = {
   stage: 4,
-  name: 'Demon Star Core',
+  name: 'Demon Starship Core',
   backdrop: 'clouds',
   introDuration: 3.0,
   warningDuration: 3.0,

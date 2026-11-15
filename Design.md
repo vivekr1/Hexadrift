@@ -1,4 +1,4 @@
-# Game Design Document — Demon Star
+# Game Design Document — Demon Starship
 
 ## 1. Vision
 
@@ -16,7 +16,7 @@ scale with their skill.
 ## 2. Core loop
 arkdown
 
-# Game Design Document — Demon Star
+# Game Design Document — Demon Starship
 
 ## 1. Vision
 
@@ -122,7 +122,7 @@ in phase 2.
 | 1 | Orbital Belt | 60 s | Blue stars, asteroid field | Cool blues |
 | 2 | Enemy Fleet | 75 s | Yellow stars, dense formations | Warned yellows |
 | 3 | Planet Surface | 90 s | Pink stars, heavy enemy mix | Alien pinks |
-| 4 | Demon Star Core | 105 s | Red stars, max enemy density | Infernal reds |
+| 4 | Demon Starship Core | 105 s | Red stars, max enemy density | Infernal reds |
 
 Each stage has 7–16 wave entries with `{ t, spawn, count }` metadata. Waves
 are fired relative to stage-play start (not global time). Late-stage waves

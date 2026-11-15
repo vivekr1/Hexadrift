@@ -66,9 +66,9 @@ export class Menu {
 
     ctx.font = 'bold 52px monospace';
     ctx.fillStyle = '#111';
-    ctx.fillText('DEMON STAR', W / 2 + 3, H / 2 - 100 + 3);
+    ctx.fillText('Demon Starship', W / 2 + 3, H / 2 - 100 + 3);
     ctx.fillStyle = '#5ef';
-    ctx.fillText('DEMON STAR', W / 2, H / 2 - 100);
+    ctx.fillText('Demon Starship', W / 2, H / 2 - 100);
 
     ctx.font = '18px monospace';
     ctx.fillStyle = '#8af';

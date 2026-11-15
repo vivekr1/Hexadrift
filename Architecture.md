@@ -1,8 +1,8 @@
-# Architecture — Demon Star
+# Architecture — Demon Starship
 
 ## 1. Overview
 
-Demon Star is a **static client-side web application** with no backend.
+Demon Starship is a **static client-side web application** with no backend.
 Built with vanilla JavaScript (ES modules), HTML5 Canvas2D, and WebAudio.
 Bundled by Vite for production.
 
