@@ -1,4 +1,5 @@
 // Powerup logic// src/powerups.js
+import { clock } from './clock.js';
 
 // Drop chance per enemy rank.
 const DROP_CHANCE = {
@@ -9,14 +10,14 @@ const DROP_CHANCE = {
 
 // Weighted roll for what actually drops.
 function rollType(rank) {
-  const r = Math.random();
+  const r = clock.random();
   if (rank === 'boss')     return 'weapon';       // boss always drops a weapon
   if (rank === 'uncommon') return r < 0.65 ? 'weapon' : 'bomb';
   return r < 0.6 ? 'weapon' : 'bomb';             // common
 }
 
 export function maybeDrop(game, x, y, rank = 'common') {
-  if (Math.random() > (DROP_CHANCE[rank] ?? 0.04)) return;
+  if (clock.random() > (DROP_CHANCE[rank] ?? 0.04)) return;
   spawnPickup(game, x, y, rollType(rank));
 
   // Boss also drops a bomb, for good measure.

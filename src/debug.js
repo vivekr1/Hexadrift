@@ -11,6 +11,6 @@ export function drawHitboxes(game) {
     };
     if (game.player?.alive) circle(game.player.x, game.player.y, game.player.r);
     for (const e of game.entities) if (e !== game.player && e.alive) circle(e.x, e.y, e.r ?? 12);
-    for (const b of game.bullets) if (b.alive) circle(b.x, b.y, b.r ?? 4);
-    for (const b of game.enemyBullets) if (b.alive) circle(b.x, b.y, b.r ?? 5);
+    for (const b of game.bullets.list) if (b.alive) circle(b.x, b.y, b.r ?? 4);
+    for (const b of game.enemyBullets.list) if (b.alive) circle(b.x, b.y, b.r ?? 5);
 }

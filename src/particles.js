@@ -28,7 +28,7 @@ export function burst(game, x, y, count, opts = {}) {
       x, y,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s,
-      life: life * (0.6 + Math.random() * 0.6),
+      life: life * (0.6 + clock.random() * 0.6),
       r,
       color,
       drag: 0.88,

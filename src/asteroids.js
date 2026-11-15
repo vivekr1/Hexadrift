@@ -1,37 +1,46 @@
 // src/asteroids.js — asteroid field (stage 1 background)
+import { clock } from './clock.js';
 
 function makeAsteroidData(initial) {
-    const sides = 6 + Math.floor(Math.random() * 4);      // 6–9 vertices
+    const sides = 6 + Math.floor(clock.random() * 4);      // 6–9 vertices
     const vertices = [];
     for (let i = 0; i < sides; i++) {
         const angle = (i / sides) * Math.PI * 2;
-        const r = 0.65 + Math.random() * 0.35;            // irregular radius
+        const r = 0.65 + clock.random() * 0.35;            // irregular radius
         vertices.push({ angle, r });
     }
 
     // Size distribution: 40% small, 45% medium, 15% large (rare planetoids)
-    const roll = Math.random();
+    const roll = clock.random();
     let size;
-    if (roll < 0.40)      size = 30 + Math.random() * 30;    // 30–60
-    else if (roll < 0.85) size = 60 + Math.random() * 40;    // 60–100
-    else                  size = 120 + Math.random() * 60;   // 120–180 (huge)
+    if (roll < 0.40)      size = 30 + clock.random() * 30;    // 30–60
+    else if (roll < 0.85) size = 60 + clock.random() * 40;    // 60–100
+    else                  size = 120 + clock.random() * 60;   // 120–180 (huge)
 
     return {
-        x: initial ? Math.random() * 480 : Math.random() * 480,
-        y: initial ? Math.random() * 800 : -200 - Math.random() * 200,
+        x: initial ? clock.random() * 480 : clock.random() * 480,
+        y: initial ? clock.random() * 800 : -200 - clock.random() * 200,
         size,
-        vx: (Math.random() - 0.5) * 15,
-        vy: 50 + Math.random() * 70,                       // scroll speed
-        rot: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.35,
+        vx: (clock.random() - 0.5) * 15,
+        vy: 50 + clock.random() * 70,                       // scroll speed
+        rot: clock.random() * Math.PI * 2,
+        rotSpeed: (clock.random() - 0.5) * 0.35,
         vertices,
-        alpha: 0.18 + Math.random() * 0.22,
+        alpha: 0.18 + clock.random() * 0.22,
     };
 }
 
-const asteroids = Array.from({ length: 14 }, () => makeAsteroidData(true));
+let asteroidsInitialized = false;
+const asteroids = [];
+
+function ensureInit() {
+  if (asteroidsInitialized) return;
+  for (let i = 0; i < 14; i++) asteroids.push(makeAsteroidData(true));
+  asteroidsInitialized = true;
+}
 
 export function updateAsteroids(dt) {
+    ensureInit();
     for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
         a.x += a.vx * dt;
@@ -44,6 +53,7 @@ export function updateAsteroids(dt) {
 }
 
 export function drawAsteroids(ctx, stageIndex, inMenu) {
+    ensureInit();
     if (!inMenu && stageIndex !== 0) return;    // only stage 1 (and menu preview)
 
     for (const a of asteroids) {

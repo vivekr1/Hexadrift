@@ -22,6 +22,7 @@ export class Level {
 
     this.fadeAlpha = 0;      // 0..1
     this.fadeDir = 0;        // 0 = none, 1 = fading to black, -1 = fading from black
+    this.advancing = false;  // guard against double-fire from fade + clear timer
   }
 
   update(dt) {
@@ -94,9 +95,8 @@ export class Level {
         break;
 
       case 'clear':
-        if (this.stateTime >= this.clearDuration) {
-          this.advanceStage();
-        }
+        // Fade-driven advance in update() is the canonical path (Path B).
+        // This branch intentionally empty — Path A removed to prevent double-fire.
         break;
 
       case 'victory':
@@ -206,6 +206,8 @@ export class Level {
   // }
 
   advanceStage() {
+    if (this.advancing) return;
+    this.advancing = true;
     const next = this.stageIndex + 1;
     if (next >= LEVELS.length) {
       this.state = 'victory';

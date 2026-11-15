@@ -1,17 +1,30 @@
 // src/starfield.js — two-layer parallax starfield
+import { clock } from './clock.js';
 
-const starsFar = Array.from({ length: 60 }, () => ({
-    x: Math.random() * 480,
-    y: Math.random() * 800,
-    s: Math.random() * 1 + 0.5,
-    v: Math.random() * 60 + 30,     // slow
-}));
-const starsNear = Array.from({ length: 40 }, () => ({
-    x: Math.random() * 480,
-    y: Math.random() * 800,
-    s: Math.random() * 2 + 1,
-    v: Math.random() * 160 + 100,   // fast
-}));
+let starsInitialized = false;
+const starsFar = [];
+const starsNear = [];
+
+function ensureInit() {
+  if (starsInitialized) return;
+  for (let i = 0; i < 60; i++) {
+    starsFar.push({
+      x: clock.random() * 480,
+      y: clock.random() * 800,
+      s: clock.random() * 1 + 0.5,
+      v: clock.random() * 60 + 30,     // slow
+    });
+  }
+  for (let i = 0; i < 40; i++) {
+    starsNear.push({
+      x: clock.random() * 480,
+      y: clock.random() * 800,
+      s: clock.random() * 2 + 1,
+      v: clock.random() * 160 + 100,   // fast
+    });
+  }
+  starsInitialized = true;
+}
 
 const STAGE_STAR_COLORS = [
     { far: '#446', near: '#8af' },  // stage 1 — orbital belt
@@ -21,6 +34,7 @@ const STAGE_STAR_COLORS = [
 ];
 
 export function drawStars(ctx, t, stageIndex) {
+    ensureInit();
     const idx = stageIndex ?? 0;
     const palette = STAGE_STAR_COLORS[idx % STAGE_STAR_COLORS.length];
 

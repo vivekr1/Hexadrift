@@ -118,14 +118,11 @@ export class Game {
         this.player = null;
         this.audioInited = false;
         this.started = false;
-        this.fadeAlpha = 0;
-        this.fadeDir = 0;
         this.paused = false;
         this.debugHit = false;
     }
 
     triggerShake(duration, power) {
-        console.log(`Triggering shake: ${duration}s, ${power}px`);
         if (this.shakeTime <= 0 || duration > this.shakeTime) {
             this.shakeTime = duration;
             this.shakeDur = duration;

@@ -1,5 +1,6 @@
 // src/player.js
 import { explosions, burst } from './particles.js';
+import { clock } from './clock.js';
 
 export class Player {
   constructor(game, x, y) {
@@ -128,10 +129,10 @@ export class Player {
     this.game.triggerShake?.(0.35, 14);
     this.game.audio.playerHit();
     this.invuln = 2;
-    if (this.lives < 0) {
+    if (this.lives <= 0) {
       this.dying = true;
       this.dyingTime = 0;
-      this.deathVx = (Math.random() - 0.5) * 150;
+      this.deathVx = (clock.random() - 0.5) * 150;
       this.deathVy = -400;
     }
   }

@@ -46,7 +46,13 @@ export function advance(ms) {
 }
 
 export function enableVirtual() { _virtual = true; }
-export function disableVirtual() { _virtual = false; }
+export function disableVirtual() {
+  _virtual = false;
+  _timers.length = 0;
+  _timerId = 0;
+  _insertionIdx = 0;
+  // _seeded is intentionally NOT reset — seed() owns that contract
+}
 
 export function seed(n) {
     // resets state; not idempotent-guarded — intentional

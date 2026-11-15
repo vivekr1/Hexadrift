@@ -1,4 +1,5 @@
 // src/clouds.js — soft drifting cloud/ash backdrops for stages 3 & 4
+import { clock } from './clock.js';
 
 const CLOUD_COUNT = 10;
 const clouds = [];
@@ -17,20 +18,20 @@ const PALETTES = {
 };
 
 function makeBlobs(size) {
-    const num = 4 + Math.floor(Math.random() * 4);
+    const num = 4 + Math.floor(clock.random() * 4);
     const blobs = [];
     for (let i = 0; i < num; i++) {
-        const sides = 5 + Math.floor(Math.random() * 6);   // 5–10 vertices per blob
+        const sides = 5 + Math.floor(clock.random() * 6);   // 5–10 vertices per blob
         const vertices = [];
         for (let j = 0; j < sides; j++) {
             const angle = (j / sides) * Math.PI * 2;
-            const rr = 0.65 + Math.random() * 0.7;         // 0.65–1.35 radius multiplier
+            const rr = 0.65 + clock.random() * 0.7;         // 0.65–1.35 radius multiplier
             vertices.push({ angle, r: rr });
         }
         blobs.push({
-            dx: (Math.random() - 0.5) * size * 1.6,
-            dy: (Math.random() - 0.5) * size * 0.5,
-            r:  size * (0.35 + Math.random() * 0.45),
+            dx: (clock.random() - 0.5) * size * 1.6,
+            dy: (clock.random() - 0.5) * size * 0.5,
+            r:  size * (0.35 + clock.random() * 0.45),
             vertices,
         });
     }
@@ -38,13 +39,13 @@ function makeBlobs(size) {
 }
 
 function makeCloud(initial) {
-    const near = Math.random() < 0.55;
-    const size = near ? 50 + Math.random() * 70 : 30 + Math.random() * 50;
+    const near = clock.random() < 0.55;
+    const size = near ? 50 + clock.random() * 70 : 30 + clock.random() * 50;
     return {
-        x: Math.random() * 480,
-        y: initial ? Math.random() * 800 : -200 - Math.random() * 200,
-        vx: (Math.random() - 0.5) * 6,
-        vy: near ? 55 + Math.random() * 30 : 25 + Math.random() * 20,
+        x: clock.random() * 480,
+        y: initial ? clock.random() * 800 : -200 - clock.random() * 200,
+        vx: (clock.random() - 0.5) * 6,
+        vy: near ? 55 + clock.random() * 30 : 25 + clock.random() * 20,
         blobs: makeBlobs(size),
         near,
     };
