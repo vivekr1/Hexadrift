@@ -15,7 +15,6 @@ on:
         type: choice
         options:
           - github-pages
-          - netlify
 
 # Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
 permissions:
@@ -40,7 +39,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 24
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
@@ -79,4 +78,4 @@ jobs:
           path: dist/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v6
+        uses: actions/deploy-pages@v4
