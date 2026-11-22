@@ -25,6 +25,9 @@ export function loadImages() {
   if (typeof Image === 'undefined') { assets.ready = true; return Promise.resolve(); }
   return Promise.all(Object.entries(IMAGES).map(([key, url]) => new Promise((res) => {
     const img = new Image();
+    // Prepend Vite base URL so sprites load correctly on GitHub Pages
+    // (e.g. /Hexadrift/assets/sprites/player.png instead of /assets/sprites/player.png)
+    const src = (import.meta.env.BASE_URL || '') + url;
     img.onload  = () => { 
         // Strip the white background from boss sprites
         if (key.startsWith('boss')) {
@@ -34,8 +37,8 @@ export function loadImages() {
         }
         res(); 
     };
-    img.onerror = () => { console.warn('sprite missing:', key); res(); }; // fallback path
-    img.src = url;
+    img.onerror = () => { console.warn('sprite missing:', key, 'tried', src); res(); }; // fallback path
+    img.src = src;
   }))).then(() => { assets.ready = true; });
 }
 
