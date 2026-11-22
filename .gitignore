@@ -24,3 +24,4 @@ yarn-error.log*
 **/backup/**
 
 # folders
+/assets.ignore/

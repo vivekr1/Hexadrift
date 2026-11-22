@@ -1,24 +1,25 @@
 // src/enemies.js
 import { clock } from './clock.js';
+import { sprite } from './assets.js';
 
 export function spawn(game, wave) {
   switch (wave.spawn) {
-    case 'scoutLine': return line(game, wave.count, 'scout');
-    case 'scoutSine': return sine(game, wave.count, 'scout');
-    case 'diver':     return divers(game, wave.count);
-    case 'heavy':     return heavyWave(game, wave.count);
+    case 'scoutLine':   return line(game, wave.count);
+    case 'scoutSine':   return sine(game, wave.count);
+    case 'diver':       return divers(game, wave.count);
+    case 'heavy':       return heavyWave(game, wave.count);
     case 'turretSides': return turrets(game);
-    case 'midboss1':  return midboss1(game);
-    
+    case 'midboss1':    return midboss1(game);
   }
 }
 
 const FLASH_TIME = 0.08;
 
-function baseEnemy(game, x, y, hp, r, draw, update) {
+function baseEnemy(game, x, y, hp, r, draw, update, spriteKey) {
   const e = {
     x, y, hp, r, alive: true, game,
     flash: 0,
+    spriteKey,
 
     update(dt) {
       if (this.flash > 0) this.flash -= dt;
@@ -26,7 +27,13 @@ function baseEnemy(game, x, y, hp, r, draw, update) {
     },
 
     draw(ctx) {
-      draw.call(this, ctx);
+      const img = sprite(this.spriteKey);
+      if (img) {
+        const size = this.r * 2.4;
+        ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+      } else {
+        draw.call(this, ctx);
+      }
 
       if (this.flash > 0) {
         ctx.globalAlpha = Math.min(this.flash / FLASH_TIME, 1);
@@ -48,7 +55,7 @@ function baseEnemy(game, x, y, hp, r, draw, update) {
   return e;
 }
 
-function line(game, count, kind) {
+function line(game, count) {
   for (let i = 0; i < count; i++) {
     const x = 80 + i * 70;
     const y = -30 - i * 40;
@@ -62,11 +69,12 @@ function line(game, count, kind) {
       function (dt) {
         this.y += 140 * dt;
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'scout');
   }
 }
 
-function sine(game, count, kind) {
+function sine(game, count) {
   for (let i = 0; i < count; i++) {
     const e = baseEnemy(game, 0, -30 - i * 60, 3, 14,
       function (ctx) {
@@ -80,7 +88,8 @@ function sine(game, count, kind) {
         this.y += 140 * dt;
         this.x = 240 + Math.sin(this.t * 2) * 160;
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'scoutSine');
     e.t = i * 0.3;
   }
 }
@@ -97,7 +106,8 @@ function divers(game, count) {
         function (dt) {
           this.y += 320 * dt;
           if (this.y > 900) this.alive = false;
-        });
+        },
+        'diver');
     }, i * 150);
   }
 }
@@ -129,7 +139,8 @@ function turrets(game) {
           b.r = 5;
           b.color = '#f4f';
         }
-      });
+      },
+      'turret');
   }
 }
 
@@ -166,7 +177,8 @@ function heavyWave(game, count) {
           b.color = '#fa4';
         }
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'heavy');
   }
 }
 
@@ -192,5 +204,6 @@ function midboss1(game) {
           b.color = '#f4f';
         }
       }
-    });
+    },
+    'midboss1');
 }

@@ -72,7 +72,7 @@ export class Menu {
 
     ctx.font = '18px monospace';
     ctx.fillStyle = '#8af';
-    ctx.fillText('a 4-stage shmup', W / 2, H / 2 - 50);
+    ctx.fillText('a 4-stage shoot `em up', W / 2, H / 2 - 50);
 
     const blink = 0.5 + 0.5 * Math.sin(performance.now() / 400);
     ctx.globalAlpha = blink;

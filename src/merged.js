@@ -1,42 +1,84 @@
 ﻿// ===== assets.js =====
-// Sprite and audio loader logic
+// src/assets.js â€” image loader with headless guard
+// Sprite paths match the audio convention: root-relative /assets/sprites/...
+// Served from public/assets/sprites/ â†’ dist/assets/sprites/ at build time.
+
+const IMAGES = {
+  player:   'assets/sprites/player.png',
+  scout:    'assets/sprites/scout.png',
+  scoutSine:'assets/sprites/scout_sine.png',
+  diver:    'assets/sprites/diver.png',
+  turret:   'assets/sprites/turret.png',
+  heavy:    'assets/sprites/heavy.png',
+  midboss1: 'assets/sprites/midboss1.png',
+  boss1: 'assets/sprites/boss1.png', boss2: 'assets/sprites/boss2.png',
+  boss3: 'assets/sprites/boss3.png', boss4: 'assets/sprites/boss4.png',
+  pickupWeapon: 'assets/sprites/pickup_weapon.png',
+  pickupBomb:   'assets/sprites/pickup_bomb.png',
+};
+
+const cache = new Map();
+export const assets = { ready: typeof Image === 'undefined' };
+
+export function loadImages() {
+  // Headless guard: Node test harness has no Image â†’ resolve immediately,
+  // sprite() returns null, every draw() falls back to procedural geometry.
+  if (typeof Image === 'undefined') { assets.ready = true; return Promise.resolve(); }
+  return Promise.all(Object.entries(IMAGES).map(([key, url]) => new Promise((res) => {
+    const img = new Image();
+    img.onload  = () => { cache.set(key, img); res(); };
+    img.onerror = () => { console.warn('sprite missing:', key); res(); }; // fallback path
+    img.src = url;
+  }))).then(() => { assets.ready = true; });
+}
+
+export function sprite(key) { return cache.get(key) ?? null; }
 
 
 // ===== asteroids.js =====
 // src/asteroids.js â€” asteroid field (stage 1 background)
+import { clock } from './clock.js';
 
 function makeAsteroidData(initial) {
-    const sides = 6 + Math.floor(Math.random() * 4);      // 6â€“9 vertices
+    const sides = 6 + Math.floor(clock.random() * 4);      // 6â€“9 vertices
     const vertices = [];
     for (let i = 0; i < sides; i++) {
         const angle = (i / sides) * Math.PI * 2;
-        const r = 0.65 + Math.random() * 0.35;            // irregular radius
+        const r = 0.65 + clock.random() * 0.35;            // irregular radius
         vertices.push({ angle, r });
     }
 
     // Size distribution: 40% small, 45% medium, 15% large (rare planetoids)
-    const roll = Math.random();
+    const roll = clock.random();
     let size;
-    if (roll < 0.40)      size = 30 + Math.random() * 30;    // 30â€“60
-    else if (roll < 0.85) size = 60 + Math.random() * 40;    // 60â€“100
-    else                  size = 120 + Math.random() * 60;   // 120â€“180 (huge)
+    if (roll < 0.40)      size = 30 + clock.random() * 30;    // 30â€“60
+    else if (roll < 0.85) size = 60 + clock.random() * 40;    // 60â€“100
+    else                  size = 120 + clock.random() * 60;   // 120â€“180 (huge)
 
     return {
-        x: initial ? Math.random() * 480 : Math.random() * 480,
-        y: initial ? Math.random() * 800 : -200 - Math.random() * 200,
+        x: initial ? clock.random() * 480 : clock.random() * 480,
+        y: initial ? clock.random() * 800 : -200 - clock.random() * 200,
         size,
-        vx: (Math.random() - 0.5) * 15,
-        vy: 50 + Math.random() * 70,                       // scroll speed
-        rot: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.35,
+        vx: (clock.random() - 0.5) * 15,
+        vy: 50 + clock.random() * 70,                       // scroll speed
+        rot: clock.random() * Math.PI * 2,
+        rotSpeed: (clock.random() - 0.5) * 0.35,
         vertices,
-        alpha: 0.18 + Math.random() * 0.22,
+        alpha: 0.18 + clock.random() * 0.22,
     };
 }
 
-const asteroids = Array.from({ length: 14 }, () => makeAsteroidData(true));
+let asteroidsInitialized = false;
+const asteroids = [];
+
+function ensureInit() {
+  if (asteroidsInitialized) return;
+  for (let i = 0; i < 14; i++) asteroids.push(makeAsteroidData(true));
+  asteroidsInitialized = true;
+}
 
 export function updateAsteroids(dt) {
+    ensureInit();
     for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
         a.x += a.vx * dt;
@@ -49,6 +91,7 @@ export function updateAsteroids(dt) {
 }
 
 export function drawAsteroids(ctx, stageIndex, inMenu) {
+    ensureInit();
     if (!inMenu && stageIndex !== 0) return;    // only stage 1 (and menu preview)
 
     for (const a of asteroids) {
@@ -950,7 +993,13 @@ export function advance(ms) {
 }
 
 export function enableVirtual() { _virtual = true; }
-export function disableVirtual() { _virtual = false; }
+export function disableVirtual() {
+  _virtual = false;
+  _timers.length = 0;
+  _timerId = 0;
+  _insertionIdx = 0;
+  // _seeded is intentionally NOT reset â€” seed() owns that contract
+}
 
 export function seed(n) {
     // resets state; not idempotent-guarded â€” intentional
@@ -979,6 +1028,7 @@ export const clock = {
 
 // ===== clouds.js =====
 // src/clouds.js â€” soft drifting cloud/ash backdrops for stages 3 & 4
+import { clock } from './clock.js';
 
 const CLOUD_COUNT = 10;
 const clouds = [];
@@ -997,20 +1047,20 @@ const PALETTES = {
 };
 
 function makeBlobs(size) {
-    const num = 4 + Math.floor(Math.random() * 4);
+    const num = 4 + Math.floor(clock.random() * 4);
     const blobs = [];
     for (let i = 0; i < num; i++) {
-        const sides = 5 + Math.floor(Math.random() * 6);   // 5â€“10 vertices per blob
+        const sides = 5 + Math.floor(clock.random() * 6);   // 5â€“10 vertices per blob
         const vertices = [];
         for (let j = 0; j < sides; j++) {
             const angle = (j / sides) * Math.PI * 2;
-            const rr = 0.65 + Math.random() * 0.7;         // 0.65â€“1.35 radius multiplier
+            const rr = 0.65 + clock.random() * 0.7;         // 0.65â€“1.35 radius multiplier
             vertices.push({ angle, r: rr });
         }
         blobs.push({
-            dx: (Math.random() - 0.5) * size * 1.6,
-            dy: (Math.random() - 0.5) * size * 0.5,
-            r:  size * (0.35 + Math.random() * 0.45),
+            dx: (clock.random() - 0.5) * size * 1.6,
+            dy: (clock.random() - 0.5) * size * 0.5,
+            r:  size * (0.35 + clock.random() * 0.45),
             vertices,
         });
     }
@@ -1018,13 +1068,13 @@ function makeBlobs(size) {
 }
 
 function makeCloud(initial) {
-    const near = Math.random() < 0.55;
-    const size = near ? 50 + Math.random() * 70 : 30 + Math.random() * 50;
+    const near = clock.random() < 0.55;
+    const size = near ? 50 + clock.random() * 70 : 30 + clock.random() * 50;
     return {
-        x: Math.random() * 480,
-        y: initial ? Math.random() * 800 : -200 - Math.random() * 200,
-        vx: (Math.random() - 0.5) * 6,
-        vy: near ? 55 + Math.random() * 30 : 25 + Math.random() * 20,
+        x: clock.random() * 480,
+        y: initial ? clock.random() * 800 : -200 - clock.random() * 200,
+        vx: (clock.random() - 0.5) * 6,
+        vy: near ? 55 + clock.random() * 30 : 25 + clock.random() * 20,
         blobs: makeBlobs(size),
         near,
     };
@@ -1218,33 +1268,34 @@ export function drawHitboxes(game) {
     };
     if (game.player?.alive) circle(game.player.x, game.player.y, game.player.r);
     for (const e of game.entities) if (e !== game.player && e.alive) circle(e.x, e.y, e.r ?? 12);
-    for (const b of game.bullets) if (b.alive) circle(b.x, b.y, b.r ?? 4);
-    for (const b of game.enemyBullets) if (b.alive) circle(b.x, b.y, b.r ?? 5);
+    for (const b of game.bullets.list) if (b.alive) circle(b.x, b.y, b.r ?? 4);
+    for (const b of game.enemyBullets.list) if (b.alive) circle(b.x, b.y, b.r ?? 5);
 }
 
 
 // ===== enemies.js =====
 // src/enemies.js
 import { clock } from './clock.js';
+import { sprite } from './assets.js';
 
 export function spawn(game, wave) {
   switch (wave.spawn) {
-    case 'scoutLine': return line(game, wave.count, 'scout');
-    case 'scoutSine': return sine(game, wave.count, 'scout');
-    case 'diver':     return divers(game, wave.count);
-    case 'heavy':     return heavyWave(game, wave.count);
+    case 'scoutLine':   return line(game, wave.count);
+    case 'scoutSine':   return sine(game, wave.count);
+    case 'diver':       return divers(game, wave.count);
+    case 'heavy':       return heavyWave(game, wave.count);
     case 'turretSides': return turrets(game);
-    case 'midboss1':  return midboss1(game);
-    
+    case 'midboss1':    return midboss1(game);
   }
 }
 
 const FLASH_TIME = 0.08;
 
-function baseEnemy(game, x, y, hp, r, draw, update) {
+function baseEnemy(game, x, y, hp, r, draw, update, spriteKey) {
   const e = {
     x, y, hp, r, alive: true, game,
     flash: 0,
+    spriteKey,
 
     update(dt) {
       if (this.flash > 0) this.flash -= dt;
@@ -1252,7 +1303,13 @@ function baseEnemy(game, x, y, hp, r, draw, update) {
     },
 
     draw(ctx) {
-      draw.call(this, ctx);
+      const img = sprite(this.spriteKey);
+      if (img) {
+        const size = this.r * 2.4;
+        ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+      } else {
+        draw.call(this, ctx);
+      }
 
       if (this.flash > 0) {
         ctx.globalAlpha = Math.min(this.flash / FLASH_TIME, 1);
@@ -1274,7 +1331,7 @@ function baseEnemy(game, x, y, hp, r, draw, update) {
   return e;
 }
 
-function line(game, count, kind) {
+function line(game, count) {
   for (let i = 0; i < count; i++) {
     const x = 80 + i * 70;
     const y = -30 - i * 40;
@@ -1288,11 +1345,12 @@ function line(game, count, kind) {
       function (dt) {
         this.y += 140 * dt;
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'scout');
   }
 }
 
-function sine(game, count, kind) {
+function sine(game, count) {
   for (let i = 0; i < count; i++) {
     const e = baseEnemy(game, 0, -30 - i * 60, 3, 14,
       function (ctx) {
@@ -1306,7 +1364,8 @@ function sine(game, count, kind) {
         this.y += 140 * dt;
         this.x = 240 + Math.sin(this.t * 2) * 160;
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'scoutSine');
     e.t = i * 0.3;
   }
 }
@@ -1323,7 +1382,8 @@ function divers(game, count) {
         function (dt) {
           this.y += 320 * dt;
           if (this.y > 900) this.alive = false;
-        });
+        },
+        'diver');
     }, i * 150);
   }
 }
@@ -1355,7 +1415,8 @@ function turrets(game) {
           b.r = 5;
           b.color = '#f4f';
         }
-      });
+      },
+      'turret');
   }
 }
 
@@ -1392,7 +1453,8 @@ function heavyWave(game, count) {
           b.color = '#fa4';
         }
         if (this.y > 900) this.alive = false;
-      });
+      },
+      'heavy');
   }
 }
 
@@ -1418,7 +1480,8 @@ function midboss1(game) {
           b.color = '#f4f';
         }
       }
-    });
+    },
+    'midboss1');
 }
 
 
@@ -1437,6 +1500,7 @@ import { updateAsteroids, drawAsteroids } from './asteroids.js';
 import { updateClouds, drawClouds } from './clouds.js';
 import { drawBanner } from './banner.js';
 import { drawHitboxes } from './debug.js';
+import { assets } from './assets.js';
 
 // ----- Pooled object factories -----
 
@@ -1521,6 +1585,7 @@ export class Game {
         this.ctx = canvas.getContext('2d');
         this.W = canvas.width;
         this.H = canvas.height;
+        this.ctx.imageSmoothingEnabled = false;
 
         this.input = new Input();
         this.hud = new Hud(this.ctx, this.W, this.H);
@@ -1543,14 +1608,12 @@ export class Game {
         this.player = null;
         this.audioInited = false;
         this.started = false;
-        this.fadeAlpha = 0;
-        this.fadeDir = 0;
         this.paused = false;
         this.debugHit = false;
+        this.pendingStart = null;
     }
 
     triggerShake(duration, power) {
-        console.log(`Triggering shake: ${duration}s, ${power}px`);
         if (this.shakeTime <= 0 || duration > this.shakeTime) {
             this.shakeTime = duration;
             this.shakeDur = duration;
@@ -1564,6 +1627,7 @@ export class Game {
 
     startGame(stageIndex = 0) {
         if (this.started) return;
+        if (!assets.ready) { this.pendingStart = stageIndex; return; }
         this.started = true;
         this.paused = false;
         this.audio.stopMenuMusic();
@@ -1582,6 +1646,12 @@ export class Game {
         this.entities = [this.player];
     }
     update(dt) {
+        // Deferred start: assets loaded mid-flight, start the pending stage
+        if (this.pendingStart != null && assets.ready) {
+            const s = this.pendingStart;
+            this.pendingStart = null;
+            this.startGame(s);
+        }
         this.time += dt;
         updateAsteroids(dt);
         updateClouds(dt, this.level?.stageIndex ?? 0);
@@ -1827,6 +1897,7 @@ export class Level {
 
     this.fadeAlpha = 0;      // 0..1
     this.fadeDir = 0;        // 0 = none, 1 = fading to black, -1 = fading from black
+    this.advancing = false;  // guard against double-fire from fade + clear timer
   }
 
   update(dt) {
@@ -1899,9 +1970,8 @@ export class Level {
         break;
 
       case 'clear':
-        if (this.stateTime >= this.clearDuration) {
-          this.advanceStage();
-        }
+        // Fade-driven advance in update() is the canonical path (Path B).
+        // This branch intentionally empty â€” Path A removed to prevent double-fire.
         break;
 
       case 'victory':
@@ -2011,6 +2081,8 @@ export class Level {
   // }
 
   advanceStage() {
+    if (this.advancing) return;
+    this.advancing = true;
     const next = this.stageIndex + 1;
     if (next >= LEVELS.length) {
       this.state = 'victory';
@@ -2102,6 +2174,7 @@ export class Level {
 import { Game } from './game.js';
 import { Level } from './level.js';
 import { clock } from './clock.js';
+import { loadImages } from './assets.js';
 
 if (location.search.includes('?test=1')) {
     clock.enableVirtual();
@@ -2110,6 +2183,7 @@ if (location.search.includes('?test=1')) {
 
 const canvas = document.getElementById('game');
 const game = new Game(canvas);
+loadImages();
 
 window.__game = game;
 window.__audio = game.audio;
@@ -2405,7 +2479,7 @@ export function burst(game, x, y, count, opts = {}) {
       x, y,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s,
-      life: life * (0.6 + Math.random() * 0.6),
+      life: life * (0.6 + clock.random() * 0.6),
       r,
       color,
       drag: 0.88,
@@ -2452,6 +2526,8 @@ export const explosions = {
 // ===== player.js =====
 // src/player.js
 import { explosions, burst } from './particles.js';
+import { clock } from './clock.js';
+import { sprite } from './assets.js';
 
 export class Player {
   constructor(game, x, y) {
@@ -2580,10 +2656,10 @@ export class Player {
     this.game.triggerShake?.(0.35, 14);
     this.game.audio.playerHit();
     this.invuln = 2;
-    if (this.lives < 0) {
+    if (this.lives <= 0) {
       this.dying = true;
       this.dyingTime = 0;
-      this.deathVx = (Math.random() - 0.5) * 150;
+      this.deathVx = (clock.random() - 0.5) * 150;
       this.deathVy = -400;
     }
   }
@@ -2675,6 +2751,7 @@ export class Pool {
 
 // ===== powerups.js =====
 // Powerup logic// src/powerups.js
+import { clock } from './clock.js';
 
 // Drop chance per enemy rank.
 const DROP_CHANCE = {
@@ -2685,14 +2762,14 @@ const DROP_CHANCE = {
 
 // Weighted roll for what actually drops.
 function rollType(rank) {
-  const r = Math.random();
+  const r = clock.random();
   if (rank === 'boss')     return 'weapon';       // boss always drops a weapon
   if (rank === 'uncommon') return r < 0.65 ? 'weapon' : 'bomb';
   return r < 0.6 ? 'weapon' : 'bomb';             // common
 }
 
 export function maybeDrop(game, x, y, rank = 'common') {
-  if (Math.random() > (DROP_CHANCE[rank] ?? 0.04)) return;
+  if (clock.random() > (DROP_CHANCE[rank] ?? 0.04)) return;
   spawnPickup(game, x, y, rollType(rank));
 
   // Boss also drops a bomb, for good measure.
@@ -2773,19 +2850,32 @@ export function applyPickup(game, p) {
 
 // ===== starfield.js =====
 // src/starfield.js â€” two-layer parallax starfield
+import { clock } from './clock.js';
 
-const starsFar = Array.from({ length: 60 }, () => ({
-    x: Math.random() * 480,
-    y: Math.random() * 800,
-    s: Math.random() * 1 + 0.5,
-    v: Math.random() * 60 + 30,     // slow
-}));
-const starsNear = Array.from({ length: 40 }, () => ({
-    x: Math.random() * 480,
-    y: Math.random() * 800,
-    s: Math.random() * 2 + 1,
-    v: Math.random() * 160 + 100,   // fast
-}));
+let starsInitialized = false;
+const starsFar = [];
+const starsNear = [];
+
+function ensureInit() {
+  if (starsInitialized) return;
+  for (let i = 0; i < 60; i++) {
+    starsFar.push({
+      x: clock.random() * 480,
+      y: clock.random() * 800,
+      s: clock.random() * 1 + 0.5,
+      v: clock.random() * 60 + 30,     // slow
+    });
+  }
+  for (let i = 0; i < 40; i++) {
+    starsNear.push({
+      x: clock.random() * 480,
+      y: clock.random() * 800,
+      s: clock.random() * 2 + 1,
+      v: clock.random() * 160 + 100,   // fast
+    });
+  }
+  starsInitialized = true;
+}
 
 const STAGE_STAR_COLORS = [
     { far: '#446', near: '#8af' },  // stage 1 â€” orbital belt
@@ -2795,6 +2885,7 @@ const STAGE_STAR_COLORS = [
 ];
 
 export function drawStars(ctx, t, stageIndex) {
+    ensureInit();
     const idx = stageIndex ?? 0;
     const palette = STAGE_STAR_COLORS[idx % STAGE_STAR_COLORS.length];
 

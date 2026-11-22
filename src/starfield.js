@@ -26,11 +26,12 @@ function ensureInit() {
   starsInitialized = true;
 }
 
+
 const STAGE_STAR_COLORS = [
-    { far: '#446', near: '#8af' },  // stage 1 — orbital belt
-    { far: '#553', near: '#fc8' },  // stage 2 — enemy fleet
-    { far: '#534', near: '#f8a' },  // stage 3 — planet surface
-    { far: '#411', near: '#f44' },  // stage 4 — Demon Starship core
+    { far: '#446', near: '#8af' },   // stage 1 — orbital belt
+    { far: '#553', near: '#fc8' },   // stage 2 — enemy fleet
+    { far: '#3a2410', near: '#8a6030' }, // stage 3 — planet surface (dust, not stars)
+    { far: '#411', near: '#f44' },   // stage 4 — Demon Starship core
 ];
 
 export function drawStars(ctx, t, stageIndex) {

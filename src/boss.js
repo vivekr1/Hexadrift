@@ -1,4 +1,18 @@
 // src/boss.js
+import { sprite } from './assets.js';
+
+function drawBossSprite(b, ctx, key, w, h, fallback) {
+  const img = sprite(key);
+  if (img) {
+    // Draw the image centered on the boss's x/y
+    ctx.drawImage(img, b.x - w / 2, b.y - h / 2, w, h);
+  } else {
+    // If the sprite failed to load, draw the procedural fallback
+    fallback.call(b, ctx);
+  }
+}
+
+
 export function spawnBoss(game, name) {
   const factory = BOSSES[name];
   if (!factory) {
@@ -18,6 +32,7 @@ function makeBoss(game, opts) {
     alive: true, t: 0, phase: 0,
     entering: true, invuln: 0, flash: 0,
     fireCd: 1.5, killedByBomb: false,
+    spriteKey: opts.spriteKey ?? null,
     ...opts.extra,
   };
   game.entities.push(b);
@@ -51,14 +66,35 @@ function shootAimed(game, x, y, speed, spread = 0, color = '#f4f') {
   b.color = color;
 }
 
+// function damageFlash(b, ctx) {
+//   if (b.flash > 0) {
+//     ctx.globalAlpha = Math.min(b.flash / FLASH_TIME, 1);
+//     ctx.fillStyle = '#fff';
+//     ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+//     ctx.globalAlpha = 1;
+//   }
+// }
+
+
 function damageFlash(b, ctx) {
   if (b.flash > 0) {
     ctx.globalAlpha = Math.min(b.flash / FLASH_TIME, 1);
     ctx.fillStyle = '#fff';
-    ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+    
+    if (b.flashType === 'ellipse') {
+      // UFO style: wide and flat
+      ctx.beginPath();
+      ctx.ellipse(b.x, b.y, b.r * 1.6, b.r * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Other bosses keep the original square
+      ctx.fillRect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+    }
+    
     ctx.globalAlpha = 1;
   }
 }
+
 
 function drawHpBar(b, ctx) {
   const W = b.game.W;
@@ -89,15 +125,74 @@ function bossCommon(b, dt, enterY) {
   return false;
 }
 
+// function boss1(game) {
+//   return makeBoss(game, {
+//     hp: 220,
+//     x: 240,
+//     y: -120,
+//     r: 55,
+//     spriteKey: 'boss1',
+//     extra: {
+//       entering: true,
+//       flash: 0,
+//       onPhase(p) { this.fireCd = 0.6; },
+//       hit(dmg) {
+//         this.hp -= dmg;
+//         this.flash = FLASH_TIME;
+//         if (this.hp <= 0) this.alive = false;
+//       },
+//       update(dt) {
+//         if (bossCommon(this, dt, 130)) return;
+//         this.x = 240 + Math.sin(this.t * 0.9) * 140;
+
+//         this.fireCd -= dt;
+//         if (this.fireCd > 0) return;
+
+//         if (this.phase === 0) {
+//           shootAimed(game, this.x, this.y + 30, 240, 0,     '#f4f');
+//           shootAimed(game, this.x, this.y + 30, 240, 0.15,  '#f4f');
+//           shootAimed(game, this.x, this.y + 30, 240, -0.15, '#f4f');
+//           this.fireCd = 1.1;
+//         } else if (this.phase === 1) {
+//           shootRing(game, this.x, this.y, 12, 180, this.t * 1.5, '#f6f');
+//           this.fireCd = 0.9;
+//         } else {
+//           shootRing(game, this.x, this.y, 16, 200, this.t * 2, '#f6f');
+//           shootAimed(game, this.x, this.y + 30, 280, 0, '#f4f');
+//           this.fireCd = 0.7;
+//         }
+//       },
+//       draw(ctx) {
+//         const img = sprite(this.spriteKey);
+//         if (img) {
+//           const size = this.r * 2.4;
+//           ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+//         } else {
+//           ctx.fillStyle = this.phase === 2 ? '#f44'
+//                       : this.phase === 1 ? '#fa4'
+//                       : '#fa3';
+//           ctx.fillRect(this.x - 55, this.y - 35, 110, 70);
+//           ctx.fillStyle = '#511';
+//           ctx.fillRect(this.x - 40, this.y - 20, 80, 40);
+//         }
+//         damageFlash(this, ctx);
+//         drawHpBar(this, ctx);
+//       },
+//     },
+//   });
+// }
+
 function boss1(game) {
   return makeBoss(game, {
     hp: 220,
     x: 240,
     y: -120,
-    r: 55,
+    r: 40, // Reduced hitbox to match the center of the saucer
     extra: {
       entering: true,
       flash: 0,
+      flashType: 'ellipse', // <-- Tells the flash to be wide and flat
+      
       onPhase(p) { this.fireCd = 0.6; },
       hit(dmg) {
         this.hp -= dmg;
@@ -126,12 +221,13 @@ function boss1(game) {
         }
       },
       draw(ctx) {
-        ctx.fillStyle = this.phase === 2 ? '#f44'
-                      : this.phase === 1 ? '#fa4'
-                      : '#fa3';
-        ctx.fillRect(this.x - 55, this.y - 35, 110, 70);
-        ctx.fillStyle = '#511';
-        ctx.fillRect(this.x - 40, this.y - 20, 80, 40);
+        // Draw the UFO as a wide rectangle (120x50) instead of a square
+        drawBossSprite(this, ctx, 'boss1', 150, 50, function (c) {
+          c.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#fa4' : '#fa3';
+          c.fillRect(this.x - 55, this.y - 35, 110, 70);
+          c.fillStyle = '#511';
+          c.fillRect(this.x - 40, this.y - 20, 80, 40);
+        });
         damageFlash(this, ctx);
         drawHpBar(this, ctx);
       },
@@ -144,6 +240,7 @@ const BOSSES = { boss1, boss2, boss3, boss4 };
 function boss2(game) {
   return makeBoss(game, {
     hp: 400, x: 240, y: -120, r: 70,
+    spriteKey: 'boss2',
     extra: {
       entering: true, flash: 0,
       onPhase(_p) { this.fireCd = 0.5; },
@@ -171,13 +268,19 @@ function boss2(game) {
         }
       },
       draw(ctx) {
-        ctx.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#fa4' : '#fa3';
-        ctx.fillRect(this.x - 70, this.y - 35, 140, 70);
-        ctx.fillStyle = '#511';
-        ctx.fillRect(this.x - 55, this.y - 20, 110, 40);
-        ctx.fillStyle = '#600';
-        ctx.fillRect(this.x - 50, this.y + 20, 20, 25);
-        ctx.fillRect(this.x + 30, this.y + 20, 20, 25);
+        const img = sprite(this.spriteKey);
+        if (img) {
+          const size = this.r * 2.4;
+          ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+        } else {
+          ctx.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#fa4' : '#fa3';
+          ctx.fillRect(this.x - 70, this.y - 35, 140, 70);
+          ctx.fillStyle = '#511';
+          ctx.fillRect(this.x - 55, this.y - 20, 110, 40);
+          ctx.fillStyle = '#600';
+          ctx.fillRect(this.x - 50, this.y + 20, 20, 25);
+          ctx.fillRect(this.x + 30, this.y + 20, 20, 25);
+        }
         damageFlash(this, ctx);
         drawHpBar(this, ctx);
       },
@@ -189,6 +292,7 @@ function boss2(game) {
 function boss3(game) {
   return makeBoss(game, {
     hp: 550, x: 240, y: -120, r: 75,
+    spriteKey: 'boss3',
     extra: {
       entering: true, flash: 0, spiralAngle: 0, spiralCd: 0,
       onPhase(_p) { this.fireCd = 0.6; },
@@ -226,17 +330,23 @@ function boss3(game) {
         }
       },
       draw(ctx) {
-        ctx.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#a4f' : '#96f';
-        ctx.beginPath(); ctx.arc(this.x, this.y, 75, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#312';
-        ctx.beginPath(); ctx.arc(this.x, this.y, 40, 0, Math.PI * 2); ctx.fill();
-        // Rotating outer nodes
-        for (let i = 0; i < 6; i++) {
-          const a = this.t * 1.5 + (i / 6) * Math.PI * 2;
-          ctx.fillStyle = '#f4f';
-          ctx.beginPath();
-          ctx.arc(this.x + Math.cos(a) * 60, this.y + Math.sin(a) * 60, 8, 0, Math.PI * 2);
-          ctx.fill();
+        const img = sprite(this.spriteKey);
+        if (img) {
+          const size = this.r * 2.4;
+          ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+        } else {
+          ctx.fillStyle = this.phase === 2 ? '#f44' : this.phase === 1 ? '#a4f' : '#96f';
+          ctx.beginPath(); ctx.arc(this.x, this.y, 75, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#312';
+          ctx.beginPath(); ctx.arc(this.x, this.y, 40, 0, Math.PI * 2); ctx.fill();
+          // Rotating outer nodes
+          for (let i = 0; i < 6; i++) {
+            const a = this.t * 1.5 + (i / 6) * Math.PI * 2;
+            ctx.fillStyle = '#f4f';
+            ctx.beginPath();
+            ctx.arc(this.x + Math.cos(a) * 60, this.y + Math.sin(a) * 60, 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
         damageFlash(this, ctx);
         drawHpBar(this, ctx);
@@ -249,6 +359,7 @@ function boss3(game) {
 function boss4(game) {
   return makeBoss(game, {
     hp: 750, x: 240, y: -120, r: 80,
+    spriteKey: 'boss4',
     extra: {
       entering: true, flash: 0,
       onPhase(_p) { this.fireCd = 0.5; },
@@ -279,19 +390,25 @@ function boss4(game) {
         }
       },
       draw(ctx) {
-        ctx.fillStyle = this.phase === 2 ? '#f22' : this.phase === 1 ? '#f82' : '#f62';
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y - 80);
-        ctx.lineTo(this.x + 80, this.y);
-        ctx.lineTo(this.x, this.y + 80);
-        ctx.lineTo(this.x - 80, this.y);
-        ctx.closePath();
-        ctx.fill();
-        // Central eye
-        ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(this.x, this.y, 35, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#f00';
-        ctx.beginPath(); ctx.arc(this.x, this.y, 20, 0, Math.PI * 2); ctx.fill();
+        const img = sprite(this.spriteKey);
+        if (img) {
+          const size = this.r * 2.4;
+          ctx.drawImage(img, this.x - size / 2, this.y - size / 2, size, size);
+        } else {
+          ctx.fillStyle = this.phase === 2 ? '#f22' : this.phase === 1 ? '#f82' : '#f62';
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y - 80);
+          ctx.lineTo(this.x + 80, this.y);
+          ctx.lineTo(this.x, this.y + 80);
+          ctx.lineTo(this.x - 80, this.y);
+          ctx.closePath();
+          ctx.fill();
+          // Central eye
+          ctx.fillStyle = '#000';
+          ctx.beginPath(); ctx.arc(this.x, this.y, 35, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#f00';
+          ctx.beginPath(); ctx.arc(this.x, this.y, 20, 0, Math.PI * 2); ctx.fill();
+        }
         damageFlash(this, ctx);
         drawHpBar(this, ctx);
       },

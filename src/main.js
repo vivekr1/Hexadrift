@@ -2,6 +2,7 @@
 import { Game } from './game.js';
 import { Level } from './level.js';
 import { clock } from './clock.js';
+import { loadImages } from './assets.js';
 
 if (location.search.includes('?test=1')) {
     clock.enableVirtual();
@@ -10,6 +11,7 @@ if (location.search.includes('?test=1')) {
 
 const canvas = document.getElementById('game');
 const game = new Game(canvas);
+loadImages();
 
 window.__game = game;
 window.__audio = game.audio;

@@ -1,6 +1,7 @@
 // src/player.js
 import { explosions, burst } from './particles.js';
 import { clock } from './clock.js';
+import { sprite } from './assets.js';
 
 export class Player {
   constructor(game, x, y) {
