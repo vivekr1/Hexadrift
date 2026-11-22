@@ -66,13 +66,13 @@ export class Menu {
 
     ctx.font = 'bold 52px monospace';
     ctx.fillStyle = '#111';
-    ctx.fillText('Demon Starship', W / 2 + 3, H / 2 - 100 + 3);
+    ctx.fillText('HEXADRIFT', W / 2 + 3, H / 2 - 100 + 3);
     ctx.fillStyle = '#5ef';
-    ctx.fillText('Demon Starship', W / 2, H / 2 - 100);
+    ctx.fillText('HEXADRIFT', W / 2, H / 2 - 100);
 
     ctx.font = '18px monospace';
     ctx.fillStyle = '#8af';
-    ctx.fillText('a 4-stage shoot `em up', W / 2, H / 2 - 50);
+    ctx.fillText('Drift. Shoot. Survive.', W / 2, H / 2 - 50);
 
     const blink = 0.5 + 0.5 * Math.sin(performance.now() / 400);
     ctx.globalAlpha = blink;
