@@ -1,4 +1,4 @@
-# Game Design Document — Demon Starship
+# Game Design Document — Hexadrift
 
 ## 1. Vision
 
@@ -16,7 +16,7 @@ scale with their skill.
 ## 2. Core loop
 arkdown
 
-# Game Design Document — Demon Starship
+# Game Design Document — Hexadrift
 
 ## 1. Vision
 

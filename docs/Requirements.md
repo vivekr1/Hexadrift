@@ -1,8 +1,8 @@
-# Requirements — Demon Starship
+# Requirements — Hexadrift
 
 ## 1. Overview
 
-**Demon Starship** is a browser-based vertical-scrolling shoot-'em-up (shmup),
+**Hexadrift** is a browser-based vertical-scrolling shoot-'em-up (shmup),
 inspired by *DemonStar* (1997). The player pilots a single ship through four
 stages, defeating waves of enemies and a unique multi-phase boss per stage.
 Progress and score are tracked locally; high scores persist across sessions.
@@ -86,7 +86,7 @@ Progress and score are tracked locally; high scores persist across sessions.
 - FR-7.5: Enter restarts the current stage (score preserved).
 
 ### FR-8 — High scores
-- FR-8.1: Top 5 scores stored in `localStorage` under `demonstar.highscores.v1`.
+- FR-8.1: Top 5 scores stored in `localStorage` under `hexadrift.highscores.v1`.
 - FR-8.2: On qualifying score, player enters 3-letter arcade-style name.
 - FR-8.3: High-score view accessible from title via H key.
 - FR-8.4: High-score entries display name, score, and stage reached.

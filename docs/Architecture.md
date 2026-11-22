@@ -1,8 +1,8 @@
-# Architecture — Demon Starship
+# Architecture — Hexadrift
 
 ## 1. Overview
 
-Demon Starship is a **static client-side web application** with no backend.
+Hexadrift is a **static client-side web application** with no backend.
 Built with vanilla JavaScript (ES modules), HTML5 Canvas2D, and WebAudio.
 Bundled by Vite for production.
 
@@ -323,7 +323,7 @@ Same pattern for menu, gameOver, ambience (each with own buffer
 slot, source, and start/stop methods).
 9. Persistence
 
-Only localStorage, key demonstar.highscores.v1.
+Only localStorage, key hexadrift.highscores.v1.
 js
 
 {
