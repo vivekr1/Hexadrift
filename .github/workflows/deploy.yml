@@ -1,0 +1,82 @@
+name: Deploy Hexadrift
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ['main']
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deployment target'
+        required: true
+        default: 'github-pages'
+        type: choice
+        options:
+          - github-pages
+          - netlify
+
+# Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  # Build the static site once, reuse across deploy targets
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ github.event.inputs.target || 'github-pages' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+      - name: Set up Node
+        uses: actions/setup-node@499332a43062e544311b8ac6313f930499192238 # v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Verify dist output
+        run: |
+          if [ ! -d dist ]; then echo "dist folder missing after build" >&2; exit 1; fi
+          if [ ! -f dist/index.html ]; then echo "dist/index.html missing" >&2; exit 1; fi
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@a8a3f3ade306cedb79ce6a61b32a5ea24c4287ed # v4
+        with:
+          name: hexadrift-dist
+          path: dist/
+          retention-days: 1
+
+  # Deploy to GitHub Pages
+  deploy-pages:
+    needs: build
+    if: needs.build.outputs.target == 'github-pages'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download dist artifact
+        uses: actions/download-artifact@fb4a6f789430e4cc43ed9da343031e11a2b2fd90 # v4
+        with:
+          name: hexadrift-dist
+          path: dist/
+      - name: Setup Pages
+        uses: actions/configure-pages@c270163b62571423107e7a6908f5477b647850e3 # v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@806266cf934c49c175289380f84738b0229938f1 # v3
+        with:
+          path: dist/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@fd05cde4b08c190f8fe2496cf2dfefb7ac540b67 # v6
