@@ -36,9 +36,9 @@ jobs:
       target: ${{ github.event.inputs.target || 'github-pages' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        uses: actions/checkout@v4
       - name: Set up Node
-        uses: actions/setup-node@499332a43062e544311b8ac6313f930499192238 # v4
+        uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'npm'
@@ -51,7 +51,7 @@ jobs:
           if [ ! -d dist ]; then echo "dist folder missing after build" >&2; exit 1; fi
           if [ ! -f dist/index.html ]; then echo "dist/index.html missing" >&2; exit 1; fi
       - name: Upload dist artifact
-        uses: actions/upload-artifact@a8a3f3ade306cedb79ce6a61b32a5ea24c4287ed # v4
+        uses: actions/upload-artifact@v4
         with:
           name: hexadrift-dist
           path: dist/
@@ -67,16 +67,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download dist artifact
-        uses: actions/download-artifact@fb4a6f789430e4cc43ed9da343031e11a2b2fd90 # v4
+        uses: actions/download-artifact@v4
         with:
           name: hexadrift-dist
           path: dist/
       - name: Setup Pages
-        uses: actions/configure-pages@c270163b62571423107e7a6908f5477b647850e3 # v5
+        uses: actions/configure-pages@v5
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@806266cf934c49c175289380f84738b0229938f1 # v3
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@fd05cde4b08c190f8fe2496cf2dfefb7ac540b67 # v6
+        uses: actions/deploy-pages@v6
